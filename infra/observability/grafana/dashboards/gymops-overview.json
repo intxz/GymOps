@@ -24,12 +24,14 @@
     {
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "id": 1,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(rate(gymops_http_requests_total[5m]))",
           "legendFormat": "req/s",
           "refId": "A"
@@ -41,12 +43,14 @@
     {
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "id": 2,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "100 * sum(rate(gymops_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(gymops_http_requests_total[5m])), 0.0001)",
           "legendFormat": "error %",
           "refId": "A"
@@ -58,12 +62,14 @@
     {
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "id": 3,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
         "tooltip": { "mode": "single", "sort": "none" }
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "histogram_quantile(0.95, sum by (le) (rate(gymops_http_request_duration_seconds_bucket[5m])))",
           "legendFormat": "p95 sec",
           "refId": "A"
@@ -75,6 +81,7 @@
     {
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
       "id": 4,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -85,6 +92,7 @@
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(gymops_http_requests_in_progress)",
           "refId": "A"
         }
@@ -95,6 +103,7 @@
     {
       "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
       "id": 5,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -105,6 +114,7 @@
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(increase(gymops_workout_sessions_total{action=\"started\"}[24h]))",
           "refId": "A"
         }
@@ -115,6 +125,7 @@
     {
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
       "id": 6,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -125,6 +136,7 @@
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(increase(gymops_workout_sets_total{kind=\"effective\"}[24h]))",
           "refId": "A"
         }
@@ -135,6 +147,7 @@
     {
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
       "id": 7,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -145,6 +158,7 @@
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(increase(gymops_workout_volume_kg_total[24h]))",
           "refId": "A"
         }
@@ -155,14 +169,15 @@
     {
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 16 },
       "id": 8,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
-        { "expr": "sum(rate(gymops_workout_sessions_total{action=\"started\"}[5m]))", "legendFormat": "started", "refId": "A" },
-        { "expr": "sum(rate(gymops_workout_sessions_total{action=\"completed\"}[5m]))", "legendFormat": "completed", "refId": "B" },
-        { "expr": "sum(rate(gymops_workout_sessions_total{action=\"cancelled\"}[5m]))", "legendFormat": "cancelled", "refId": "C" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sessions_total{action=\"started\"}[5m]))", "legendFormat": "started", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sessions_total{action=\"completed\"}[5m]))", "legendFormat": "completed", "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sessions_total{action=\"cancelled\"}[5m]))", "legendFormat": "cancelled", "refId": "C" }
       ],
       "title": "Workout Session Lifecycle",
       "type": "timeseries"
@@ -170,13 +185,14 @@
     {
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 16 },
       "id": 9,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
-        { "expr": "sum(rate(gymops_workout_sets_total{kind=\"warmup\"}[5m]))", "legendFormat": "warmup", "refId": "A" },
-        { "expr": "sum(rate(gymops_workout_sets_total{kind=\"effective\"}[5m]))", "legendFormat": "effective", "refId": "B" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sets_total{kind=\"warmup\"}[5m]))", "legendFormat": "warmup", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sets_total{kind=\"effective\"}[5m]))", "legendFormat": "effective", "refId": "B" }
       ],
       "title": "Set Recording Rate",
       "type": "timeseries"
@@ -184,12 +200,14 @@
     {
       "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 },
       "id": 10,
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "options": {
         "showHeader": true,
         "sortBy": [{ "desc": true, "displayName": "Value" }]
       },
       "targets": [
         {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(increase(gymops_workout_summaries_total[24h])) by (analysis_source, ai_enabled)",
           "format": "table",
           "instant": true,
@@ -226,4 +244,3 @@
   "version": 1,
   "weekStart": ""
 }
-
