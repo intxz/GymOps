@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     hermes_provider: str | None = None
     hermes_model: str | None = None
     hermes_timeout_seconds: float = 45.0
+    api_secret_key: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

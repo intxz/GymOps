@@ -23,6 +23,7 @@ async def run() -> None:
     api_client = GymApiClient(
         base_url=settings.api_base_url,
         timeout_seconds=settings.api_timeout_seconds,
+        api_key=settings.api_secret_key,
     )
     dp["api_client"] = api_client
 

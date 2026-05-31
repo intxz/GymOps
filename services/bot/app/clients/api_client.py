@@ -16,11 +16,14 @@ class ApiResult:
 
 
 class GymApiClient:
-    def __init__(self, base_url: str, timeout_seconds: float = 8.0) -> None:
+    def __init__(self, base_url: str, timeout_seconds: float = 8.0, api_key: str | None = None) -> None:
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if api_key:
+            headers["X-API-Key"] = api_key
         self._client = httpx.AsyncClient(
             base_url=base_url.rstrip("/"),
             timeout=timeout_seconds,
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
 
     async def close(self) -> None:

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, verify_api_key
 from app.schemas.sessions import (
     ActiveSessionStatusResponse,
     EndSessionResponse,
@@ -26,7 +26,7 @@ from app.services.workout_service import (
     start_session,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 
 def _raise_http_error(exc: ServiceError) -> None:
