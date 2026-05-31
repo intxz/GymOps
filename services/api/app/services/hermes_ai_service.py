@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.schemas.stats import ExerciseHistoryResponse
 from app.schemas.summary import WorkoutSummaryResponse
 
 logger = logging.getLogger(__name__)
@@ -143,22 +144,7 @@ def _merge_ai_lines_into_summary(
     return summary
 
 
-def _build_hermes_prompt(summary: WorkoutSummaryResponse) -> str:
-    payload = _build_prompt_payload(summary)
-    return (
-        "Eres Hermes, analista profesional de entrenamiento de fuerza. "
-        "Responde SOLO JSON válido con estructura exacta: "
-        '{"observations":["..."],"recommendations":["..."]}. '
-        "Observations: 2-4 puntos de lectura global del entrenamiento, fatiga, densidad, volumen y rendimiento. "
-        "Recommendations: 2-4 acciones concretas para la próxima sesión, priorizando decisiones generales y luego ejercicios clave. "
-        "Evita repetir datos obvios que ya aparecen en el resumen. "
-        "Usa tono profesional, directo y en español. "
-        "No des consejos médicos. "
-        f"Datos del entrenamiento:\n{json.dumps(payload, ensure_ascii=False)}"
-    )
-
-
-def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse) -> WorkoutSummaryResponse | None:
+def _run_hermes_json_prompt(prompt: str) -> tuple[list[str], list[str], str | None] | None:
     if not settings.hermes_oauth_enabled:
         return None
 
@@ -167,7 +153,6 @@ def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse) -> WorkoutSum
         logger.warning("HERMES_OAUTH_ENABLED=true pero comando '%s' no existe en PATH.", settings.hermes_command)
         return None
 
-    prompt = _build_hermes_prompt(summary)
     cmd = [hermes_bin, "-z", prompt]
     if settings.hermes_model:
         cmd.extend(["-m", settings.hermes_model])
@@ -177,7 +162,6 @@ def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse) -> WorkoutSum
         logger.warning(
             "HERMES_PROVIDER configurado sin HERMES_MODEL. Se ignora provider para usar modelo/proveedor por defecto."
         )
-
     cmd.append("--ignore-rules")
 
     try:
@@ -205,13 +189,40 @@ def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse) -> WorkoutSum
         logger.warning("Hermes OAuth no devolvió JSON parseable. Se mantiene local.")
         return None
 
-    ai_observations = _clean_lines(ai_json.get("observations", []), max_items=6)
-    ai_recommendations = _clean_lines(ai_json.get("recommendations", []), max_items=6)
-    if not ai_observations and not ai_recommendations:
+    observations = _clean_lines(ai_json.get("observations", []), max_items=6)
+    recommendations = _clean_lines(ai_json.get("recommendations", []), max_items=6)
+    if not observations and not recommendations:
         logger.warning("Hermes OAuth devolvió JSON sin observaciones/recomendaciones útiles.")
         return None
 
-    ai_model = settings.hermes_model or settings.openai_model or "hermes-default"
+    return observations, recommendations, settings.hermes_model or settings.openai_model or "hermes-default"
+
+
+def _build_hermes_prompt(summary: WorkoutSummaryResponse) -> str:
+    payload = _build_prompt_payload(summary)
+    return (
+        "Eres Hermes, analista profesional de entrenamiento de fuerza. "
+        "Responde SOLO JSON válido con estructura exacta: "
+        '{"observations":["..."],"recommendations":["..."]}. '
+        "Observations: 2-4 puntos de lectura global del entrenamiento, fatiga, densidad, volumen y rendimiento. "
+        "Recommendations: 2-4 acciones concretas para la próxima sesión, priorizando decisiones generales y luego ejercicios clave. "
+        "Evita repetir datos obvios que ya aparecen en el resumen. "
+        "Usa tono profesional, directo y en español. "
+        "No des consejos médicos. "
+        f"Datos del entrenamiento:\n{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+
+def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse) -> WorkoutSummaryResponse | None:
+    if not settings.hermes_oauth_enabled:
+        return None
+
+    prompt = _build_hermes_prompt(summary)
+    result = _run_hermes_json_prompt(prompt)
+    if result is None:
+        return None
+
+    ai_observations, ai_recommendations, ai_model = result
     return _merge_ai_lines_into_summary(
         summary=summary,
         ai_observations=ai_observations,
@@ -301,3 +312,64 @@ def enrich_summary_with_hermes_ai(summary: WorkoutSummaryResponse) -> WorkoutSum
         return enriched
 
     return _mark_local_fallback(summary)
+
+
+def enrich_exercise_history_with_hermes(history: ExerciseHistoryResponse) -> ExerciseHistoryResponse:
+    if not history.entries:
+        return history
+
+    payload = {
+        "exercise_name": history.exercise_name,
+        "normalized_exercise_name": history.normalized_exercise_name,
+        "entries": [
+            {
+                "performed_at": entry.performed_at.isoformat(),
+                "weight": entry.weight,
+                "reps": entry.reps,
+                "rpe": entry.rpe,
+                "is_warmup": entry.is_warmup,
+                "volume": entry.volume,
+                "estimated_1rm": entry.estimated_1rm,
+            }
+            for entry in history.entries
+        ],
+    }
+    prompt = (
+        "Eres Hermes, analista profesional de entrenamiento de fuerza. "
+        "Analiza el historial de un ejercicio y responde SOLO JSON válido con estructura exacta: "
+        '{"observations":["..."],"recommendations":["..."]}. '
+        "Observations: 2-4 conclusiones sobre progresión, consistencia, fatiga y rendimiento. "
+        "Recommendations: 2-4 acciones para las próximas sesiones de ese ejercicio. "
+        "No des consejos médicos. Usa tono profesional, directo y en español. "
+        f"Historial:\n{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+    result = _run_hermes_json_prompt(prompt)
+    if result is not None:
+        observations, recommendations, model = result
+        history.observations = observations
+        history.recommendations = recommendations
+        history.analysis_source = "hermes_oauth"
+        history.ai_enabled = True
+        history.ai_model = model
+        return history
+
+    effective_entries = [entry for entry in history.entries if not entry.is_warmup]
+    if not effective_entries:
+        history.observations = ["Solo hay series de calentamiento registradas para este ejercicio."]
+        history.recommendations = ["Registra al menos una serie efectiva con RPE > 0 para analizar progresión."]
+        return history
+
+    latest = effective_entries[0]
+    best = max(effective_entries, key=lambda entry: entry.estimated_1rm or 0)
+    avg_rpe = sum(entry.rpe for entry in effective_entries) / len(effective_entries)
+    history.observations = [
+        f"Mejor e1RM estimado: {best.estimated_1rm} kg con {best.weight}x{best.reps}.",
+        f"Ultima serie efectiva: {latest.weight}x{latest.reps} @RPE{latest.rpe}.",
+        f"RPE medio efectivo del historial mostrado: {avg_rpe:.1f}.",
+    ]
+    if avg_rpe >= 9:
+        history.recommendations = ["Fatiga alta: mantén o baja carga y busca series más consistentes."]
+    else:
+        history.recommendations = ["Progresión estable: intenta sumar 1 repetición total o mantener carga con menor RPE."]
+    return history

@@ -32,3 +32,8 @@ class ExerciseHistoryResponse(BaseModel):
     exercise_name: str
     normalized_exercise_name: str
     entries: list[ExerciseHistoryEntry]
+    observations: list[str] = []
+    recommendations: list[str] = []
+    analysis_source: str = "local_rules"
+    ai_enabled: bool = False
+    ai_model: str | None = None

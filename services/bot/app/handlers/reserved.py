@@ -216,20 +216,40 @@ async def history_command(message: Message, api_client: GymApiClient) -> None:
         return
 
     lines = [f"Historial de {data.get('normalized_exercise_name', exercise_name)}:"]
+    history_lines: list[str] = []
     current_day = ""
     current_sets: list[str] = []
     for entry in entries:
         day = _format_date(entry.get("performed_at", ""))
         if current_day and day != current_day:
-            lines.append(f"- {current_day}: {', '.join(current_sets)}")
+            history_lines.append(f"- {current_day}: {', '.join(current_sets)}")
             current_sets = []
         current_day = day
         current_sets.append(_fmt_history_set(entry))
 
     if current_day:
-        lines.append(f"- {current_day}: {', '.join(current_sets)}")
+        history_lines.append(f"- {current_day}: {', '.join(current_sets)}")
 
-    await message.answer("\n".join(lines[:12]))
+    lines.extend(history_lines[:6])
+
+    observations = [_clean_analysis_line(obs) for obs in data.get("observations", [])]
+    observations = [obs for obs in observations if obs]
+    recommendations = [_clean_analysis_line(rec) for rec in data.get("recommendations", [])]
+    recommendations = [rec for rec in recommendations if rec]
+
+    if observations:
+        lines.append("")
+        lines.append("Conclusión:")
+        for observation in observations[:3]:
+            lines.append(f"- {observation}")
+
+    if recommendations:
+        lines.append("")
+        lines.append("Próximas acciones:")
+        for recommendation in recommendations[:3]:
+            lines.append(f"- {recommendation}")
+
+    await message.answer("\n".join(lines))
 
 
 @router.message(Command("end"))

@@ -23,7 +23,7 @@ from app.schemas.sets import SetCreateResponse
 from app.schemas.stats import ExerciseHistoryEntry, ExerciseHistoryResponse, ExerciseStatsResponse
 from app.schemas.summary import ExerciseHistoryLine, ExerciseSummary, SetLine, WorkoutSummaryResponse
 from app.services.errors import ServiceError
-from app.services.hermes_ai_service import enrich_summary_with_hermes_ai
+from app.services.hermes_ai_service import enrich_exercise_history_with_hermes, enrich_summary_with_hermes_ai
 
 
 _INVALID_EXERCISE_CHARS = re.compile(r"[^\w\s-]")
@@ -647,8 +647,9 @@ def get_exercise_history(
             )
         )
 
-    return ExerciseHistoryResponse(
+    history = ExerciseHistoryResponse(
         exercise_name=exercise.name,
         normalized_exercise_name=exercise.normalized_name,
         entries=entries,
     )
+    return enrich_exercise_history_with_hermes(history)
