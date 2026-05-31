@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 class SetCreateRequest(BaseModel):
     telegram_user_id: int = Field(gt=0)
     exercise_name: str = Field(min_length=1, max_length=100)
-    weight: float = Field(ge=0)
+    weight: float = Field(gt=0)
     reps: int = Field(gt=0)
     rpe: float = Field(ge=0, le=10)
 

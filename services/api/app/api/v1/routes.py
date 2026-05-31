@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, verify_api_key
+from app.main import limiter
 from app.schemas.sessions import (
     ActiveSessionStatusResponse,
     EndSessionResponse,
@@ -37,7 +38,8 @@ def _raise_http_error(exc: ServiceError) -> None:
 
 
 @router.post("/sessions/start", response_model=SessionActionResponse, status_code=status.HTTP_201_CREATED)
-def start_workout(payload: StartSessionRequest, db: Session = Depends(get_db)) -> SessionActionResponse:
+@limiter.limit("30/minute")
+def start_workout(request: Request, payload: StartSessionRequest, db: Session = Depends(get_db)) -> SessionActionResponse:
     try:
         session = start_session(db=db, telegram_user_id=payload.telegram_user_id, username=payload.username)
         return SessionActionResponse(message="Entrenamiento iniciado.", session=session)
@@ -46,7 +48,8 @@ def start_workout(payload: StartSessionRequest, db: Session = Depends(get_db)) -
 
 
 @router.post("/sessions/end", response_model=EndSessionResponse)
-def end_workout(payload: SessionActionRequest, db: Session = Depends(get_db)) -> EndSessionResponse:
+@limiter.limit("30/minute")
+def end_workout(request: Request, payload: SessionActionRequest, db: Session = Depends(get_db)) -> EndSessionResponse:
     try:
         session, summary = end_session(db=db, telegram_user_id=payload.telegram_user_id)
         return EndSessionResponse(message="Entrenamiento finalizado.", session=session, summary=summary)
@@ -55,7 +58,8 @@ def end_workout(payload: SessionActionRequest, db: Session = Depends(get_db)) ->
 
 
 @router.post("/sessions/cancel", response_model=SessionActionResponse)
-def cancel_workout(payload: SessionActionRequest, db: Session = Depends(get_db)) -> SessionActionResponse:
+@limiter.limit("30/minute")
+def cancel_workout(request: Request, payload: SessionActionRequest, db: Session = Depends(get_db)) -> SessionActionResponse:
     try:
         session = cancel_session(db=db, telegram_user_id=payload.telegram_user_id)
         return SessionActionResponse(message="Entrenamiento cancelado.", session=session)
@@ -64,7 +68,9 @@ def cancel_workout(payload: SessionActionRequest, db: Session = Depends(get_db))
 
 
 @router.get("/sessions/active", response_model=ActiveSessionStatusResponse)
+@limiter.limit("60/minute")
 def active_workout_status(
+    request: Request,
     telegram_user_id: int = Query(..., gt=0),
     db: Session = Depends(get_db),
 ) -> ActiveSessionStatusResponse:
@@ -75,7 +81,8 @@ def active_workout_status(
 
 
 @router.post("/sets", response_model=SetCreateResponse, status_code=status.HTTP_201_CREATED)
-def register_set(payload: SetCreateRequest, db: Session = Depends(get_db)) -> SetCreateResponse:
+@limiter.limit("60/minute")
+def register_set(request: Request, payload: SetCreateRequest, db: Session = Depends(get_db)) -> SetCreateResponse:
     try:
         return add_set(
             db=db,
@@ -90,7 +97,9 @@ def register_set(payload: SetCreateRequest, db: Session = Depends(get_db)) -> Se
 
 
 @router.get("/sessions/{session_id}", response_model=SessionInfo)
+@limiter.limit("60/minute")
 def get_session(
+    request: Request,
     session_id: int,
     telegram_user_id: int = Query(..., gt=0),
     db: Session = Depends(get_db),
@@ -102,7 +111,9 @@ def get_session(
 
 
 @router.get("/stats/exercise/{exercise}", response_model=ExerciseStatsResponse)
+@limiter.limit("60/minute")
 def exercise_stats(
+    request: Request,
     exercise: str,
     telegram_user_id: int = Query(..., gt=0),
     db: Session = Depends(get_db),
@@ -114,7 +125,9 @@ def exercise_stats(
 
 
 @router.get("/history/exercise/{exercise}", response_model=ExerciseHistoryResponse)
+@limiter.limit("60/minute")
 def exercise_history(
+    request: Request,
     exercise: str,
     telegram_user_id: int = Query(..., gt=0),
     limit: int = Query(30, ge=1, le=100),
@@ -132,7 +145,9 @@ def exercise_history(
 
 
 @router.get("/summary/{session_id}", response_model=WorkoutSummaryResponse)
+@limiter.limit("60/minute")
 def session_summary(
+    request: Request,
     session_id: int,
     telegram_user_id: int = Query(..., gt=0),
     db: Session = Depends(get_db),
