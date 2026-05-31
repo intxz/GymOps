@@ -20,7 +20,10 @@ async def run() -> None:
     bot = Bot(token=settings.telegram_bot_token)
     dp = Dispatcher()
 
-    api_client = GymApiClient(base_url=settings.api_base_url)
+    api_client = GymApiClient(
+        base_url=settings.api_base_url,
+        timeout_seconds=settings.api_timeout_seconds,
+    )
     dp["api_client"] = api_client
 
     dp.include_router(reserved_router)
