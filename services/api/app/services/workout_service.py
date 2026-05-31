@@ -20,8 +20,8 @@ from app.observability.metrics import (
 from app.repositories import exercise_repository, session_repository, set_repository, user_repository
 from app.schemas.sessions import ActiveSessionStatusResponse, SessionInfo
 from app.schemas.sets import SetCreateResponse
-from app.schemas.stats import ExerciseStatsResponse
-from app.schemas.summary import ExerciseSummary, SetLine, WorkoutSummaryResponse
+from app.schemas.stats import ExerciseHistoryEntry, ExerciseHistoryResponse, ExerciseStatsResponse
+from app.schemas.summary import ExerciseHistoryLine, ExerciseSummary, SetLine, WorkoutSummaryResponse
 from app.services.errors import ServiceError
 from app.services.hermes_ai_service import enrich_summary_with_hermes_ai
 
@@ -308,6 +308,67 @@ def _exercise_load_step_kg(exercise_name: str) -> float:
     return 2.5
 
 
+def _estimated_1rm(weight: float, reps: int, is_warmup: bool) -> float | None:
+    if is_warmup:
+        return None
+    return round(max(weight, 0.0) * (1 + max(reps, 0) / 30), 2)
+
+
+def _recent_history_for_summary(
+    db: Session,
+    *,
+    user_id: int,
+    exercise_ids: list[int],
+    exclude_session_id: int,
+    limit: int = 24,
+) -> list[ExerciseHistoryLine]:
+    if not exercise_ids:
+        return []
+
+    stmt = (
+        select(
+            WorkoutSession.ended_at,
+            Exercise.name,
+            SetEntry.weight,
+            SetEntry.reps,
+            SetEntry.rpe,
+            SetEntry.is_warmup,
+        )
+        .join(WorkoutSession, WorkoutSession.id == SetEntry.workout_session_id)
+        .join(Exercise, Exercise.id == SetEntry.exercise_id)
+        .where(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.status == WorkoutStatus.completed,
+            WorkoutSession.id != exclude_session_id,
+            SetEntry.exercise_id.in_(exercise_ids),
+            WorkoutSession.ended_at.is_not(None),
+        )
+        .order_by(WorkoutSession.ended_at.desc(), SetEntry.id.desc())
+        .limit(limit)
+    )
+
+    history: list[ExerciseHistoryLine] = []
+    for row in db.execute(stmt).all():
+        performed_at = row[0]
+        weight = float(row[2])
+        reps = int(row[3])
+        is_warmup = bool(row[5])
+        volume = weight * reps
+        history.append(
+            ExerciseHistoryLine(
+                performed_at=performed_at,
+                exercise_name=str(row[1]),
+                weight=weight,
+                reps=reps,
+                rpe=float(row[4]),
+                is_warmup=is_warmup,
+                volume=round(volume, 2),
+                estimated_1rm=_estimated_1rm(weight=weight, reps=reps, is_warmup=is_warmup),
+            )
+        )
+    return history
+
+
 def _recommendation_for_exercise(exercise_name: str, effective_lines: list[SetLine], pr_achieved: bool) -> str | None:
     if not effective_lines:
         return None
@@ -367,6 +428,12 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
         )
 
     exercise_ids = sorted({s.exercise_id for s in set_entries})
+    exercise_history = _recent_history_for_summary(
+        db=db,
+        user_id=user_id,
+        exercise_ids=exercise_ids,
+        exclude_session_id=session.id,
+    )
     exercise_map_stmt = select(Exercise).where(Exercise.id.in_(exercise_ids))
     exercise_rows = db.execute(exercise_map_stmt).scalars().all()
     exercise_map = {ex.id: ex for ex in exercise_rows}
@@ -473,6 +540,7 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
         volume_total=round(volume_total, 2),
         volume_effective=round(volume_effective, 2),
         exercises=exercises_output,
+        exercise_history=exercise_history,
         observations=observations,
         recommendations=recommendations,
     )
@@ -519,4 +587,68 @@ def get_exercise_stats(db: Session, telegram_user_id: int, exercise_name: str) -
         best_weight=float(row[5]) if row[5] is not None else None,
         best_volume_set=float(row[6]) if row[6] is not None else None,
         avg_rpe_effective=round(float(row[7]), 2) if row[7] is not None else None,
+    )
+
+
+def get_exercise_history(
+    db: Session,
+    telegram_user_id: int,
+    exercise_name: str,
+    limit: int = 30,
+) -> ExerciseHistoryResponse:
+    user = user_repository.get_by_telegram_user_id(db=db, telegram_user_id=telegram_user_id)
+    if user is None:
+        raise ServiceError("Usuario no encontrado.", "USER_NOT_FOUND", status_code=404)
+
+    normalized = normalize_exercise_name(exercise_name)
+    exercise = exercise_repository.get_by_normalized_name(db=db, normalized_name=normalized)
+    if exercise is None:
+        raise ServiceError("Ejercicio no encontrado.", "EXERCISE_NOT_FOUND", status_code=404)
+
+    safe_limit = max(1, min(limit, 100))
+    stmt = (
+        select(
+            WorkoutSession.id,
+            WorkoutSession.ended_at,
+            SetEntry.weight,
+            SetEntry.reps,
+            SetEntry.rpe,
+            SetEntry.is_warmup,
+        )
+        .join(WorkoutSession, WorkoutSession.id == SetEntry.workout_session_id)
+        .where(
+            WorkoutSession.user_id == user.id,
+            WorkoutSession.status == WorkoutStatus.completed,
+            WorkoutSession.ended_at.is_not(None),
+            SetEntry.exercise_id == exercise.id,
+        )
+        .order_by(WorkoutSession.ended_at.desc(), SetEntry.id.asc())
+        .limit(safe_limit)
+    )
+
+    entries: list[ExerciseHistoryEntry] = []
+    for row in db.execute(stmt).all():
+        weight = float(row[2])
+        reps = int(row[3])
+        is_warmup = bool(row[5])
+        volume = weight * reps
+        entries.append(
+            ExerciseHistoryEntry(
+                session_id=int(row[0]),
+                performed_at=row[1],
+                exercise_name=exercise.name,
+                normalized_exercise_name=exercise.normalized_name,
+                weight=weight,
+                reps=reps,
+                rpe=float(row[4]),
+                is_warmup=is_warmup,
+                volume=round(volume, 2),
+                estimated_1rm=_estimated_1rm(weight=weight, reps=reps, is_warmup=is_warmup),
+            )
+        )
+
+    return ExerciseHistoryResponse(
+        exercise_name=exercise.name,
+        normalized_exercise_name=exercise.normalized_name,
+        entries=entries,
     )

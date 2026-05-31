@@ -86,6 +86,7 @@ Comandos implementados:
 - `/status`
 - `/end`
 - `/cancel`
+- `/historial <ejercicio>`
 - `/help`
 
 Comandos dinámicos de ejercicio:
@@ -119,6 +120,7 @@ Comportamiento:
 - Si `OPENAI_ENABLED=false`, resumen 100% local (sin coste API).
 - Si `HERMES_OAUTH_ENABLED=true`, GymOps intenta usar Hermes CLI con tu OAuth local.
 - Si Hermes/OpenAI fallan, se aplica fallback local automáticamente.
+- Al cerrar entreno, Hermes recibe el resumen actual y el historial reciente de los ejercicios trabajados.
 
 Requisito para Docker:
 

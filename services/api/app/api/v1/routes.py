@@ -11,7 +11,7 @@ from app.schemas.sessions import (
     StartSessionRequest,
 )
 from app.schemas.sets import SetCreateRequest, SetCreateResponse
-from app.schemas.stats import ExerciseStatsResponse
+from app.schemas.stats import ExerciseHistoryResponse, ExerciseStatsResponse
 from app.schemas.summary import WorkoutSummaryResponse
 from app.services.errors import ServiceError
 from app.services.workout_service import (
@@ -20,6 +20,7 @@ from app.services.workout_service import (
     cancel_session,
     end_session,
     get_active_session_status,
+    get_exercise_history,
     get_exercise_stats,
     get_session_info,
     start_session,
@@ -112,6 +113,24 @@ def exercise_stats(
         _raise_http_error(exc)
 
 
+@router.get("/history/exercise/{exercise}", response_model=ExerciseHistoryResponse)
+def exercise_history(
+    exercise: str,
+    telegram_user_id: int = Query(..., gt=0),
+    limit: int = Query(30, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> ExerciseHistoryResponse:
+    try:
+        return get_exercise_history(
+            db=db,
+            telegram_user_id=telegram_user_id,
+            exercise_name=exercise,
+            limit=limit,
+        )
+    except ServiceError as exc:
+        _raise_http_error(exc)
+
+
 @router.get("/summary/{session_id}", response_model=WorkoutSummaryResponse)
 def session_summary(
     session_id: int,
@@ -122,4 +141,3 @@ def session_summary(
         return build_summary(db=db, telegram_user_id=telegram_user_id, session_id=session_id)
     except ServiceError as exc:
         _raise_http_error(exc)
-

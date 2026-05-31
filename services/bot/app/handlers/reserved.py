@@ -22,12 +22,24 @@ def _format_duration(seconds: int) -> str:
     return f"{secs}s"
 
 
+def _format_date(value: str) -> str:
+    return value[:10] if value else "fecha_desconocida"
+
+
 def _fmt_set_line(set_row: dict[str, Any]) -> str:
     weight = set_row.get("weight", 0)
     reps = set_row.get("reps", 0)
     rpe = set_row.get("rpe", 0)
     suffix = " PR" if set_row.get("is_pr") else ""
     return f"{weight}x{reps} @RPE{rpe}{suffix}"
+
+
+def _fmt_history_set(entry: dict[str, Any]) -> str:
+    prefix = "cal" if entry.get("is_warmup") else "ef"
+    weight = entry.get("weight", 0)
+    reps = entry.get("reps", 0)
+    rpe = entry.get("rpe", 0)
+    return f"{weight}x{reps} @{rpe} ({prefix})"
 
 
 def _clean_analysis_line(text: Any) -> str | None:
@@ -176,6 +188,50 @@ async def cancel_command(message: Message, api_client: GymApiClient) -> None:
     await message.answer("Entrenamiento cancelado.")
 
 
+@router.message(Command("historial"))
+async def history_command(message: Message, api_client: GymApiClient) -> None:
+    if message.from_user is None:
+        await message.answer("No pude identificar tu usuario de Telegram.")
+        return
+
+    parts = (message.text or "").split(maxsplit=1)
+    if len(parts) < 2 or not parts[1].strip():
+        await message.answer("Uso: /historial sentadilla")
+        return
+
+    exercise_name = parts[1].strip()
+    result = await api_client.exercise_history(
+        telegram_user_id=message.from_user.id,
+        exercise_name=exercise_name,
+        limit=20,
+    )
+    if not result.ok:
+        await message.answer(result.message or "No se pudo obtener el historial.")
+        return
+
+    data = result.data or {}
+    entries = data.get("entries", [])
+    if not entries:
+        await message.answer(f"No hay historial para {exercise_name}.")
+        return
+
+    lines = [f"Historial de {data.get('normalized_exercise_name', exercise_name)}:"]
+    current_day = ""
+    current_sets: list[str] = []
+    for entry in entries:
+        day = _format_date(entry.get("performed_at", ""))
+        if current_day and day != current_day:
+            lines.append(f"- {current_day}: {', '.join(current_sets)}")
+            current_sets = []
+        current_day = day
+        current_sets.append(_fmt_history_set(entry))
+
+    if current_day:
+        lines.append(f"- {current_day}: {', '.join(current_sets)}")
+
+    await message.answer("\n".join(lines[:12]))
+
+
 @router.message(Command("end"))
 async def end_command(message: Message, api_client: GymApiClient) -> None:
     if message.from_user is None:
@@ -190,6 +246,6 @@ async def end_command(message: Message, api_client: GymApiClient) -> None:
     await message.answer(_render_end_summary(result.data or {}))
 
 
-@router.message(Command("peso", "nota", "fatiga", "resumen", "historial"))
+@router.message(Command("peso", "nota", "fatiga", "resumen"))
 async def future_commands_placeholder(message: Message) -> None:
     await message.answer("Este comando estará disponible en una fase siguiente.")

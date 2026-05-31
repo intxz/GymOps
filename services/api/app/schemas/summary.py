@@ -22,6 +22,17 @@ class ExerciseSummary(BaseModel):
     pr_achieved: bool
 
 
+class ExerciseHistoryLine(BaseModel):
+    performed_at: datetime
+    exercise_name: str
+    weight: float
+    reps: int
+    rpe: float
+    is_warmup: bool
+    volume: float
+    estimated_1rm: float | None
+
+
 class WorkoutSummaryResponse(BaseModel):
     session_id: int
     user_id: int
@@ -35,6 +46,7 @@ class WorkoutSummaryResponse(BaseModel):
     volume_total: float
     volume_effective: float
     exercises: list[ExerciseSummary]
+    exercise_history: list[ExerciseHistoryLine] = Field(default_factory=list)
     observations: list[str]
     recommendations: list[str]
     analysis_source: str = "local_rules"

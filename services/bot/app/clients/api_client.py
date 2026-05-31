@@ -44,6 +44,12 @@ class GymApiClient:
     async def active_session(self, telegram_user_id: int) -> ApiResult:
         return await self._get("/sessions/active", params={"telegram_user_id": telegram_user_id})
 
+    async def exercise_history(self, telegram_user_id: int, exercise_name: str, limit: int = 20) -> ApiResult:
+        return await self._get(
+            f"/history/exercise/{exercise_name}",
+            params={"telegram_user_id": telegram_user_id, "limit": limit},
+        )
+
     async def add_set(
         self,
         telegram_user_id: int,

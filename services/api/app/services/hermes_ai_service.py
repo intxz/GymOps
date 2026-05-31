@@ -38,6 +38,19 @@ def _build_prompt_payload(summary: WorkoutSummaryResponse) -> dict[str, Any]:
         "volume_effective": summary.volume_effective,
         "observations": summary.observations,
         "recommendations": summary.recommendations,
+        "recent_exercise_history": [
+            {
+                "performed_at": row.performed_at.isoformat(),
+                "exercise_name": row.exercise_name,
+                "weight": row.weight,
+                "reps": row.reps,
+                "rpe": row.rpe,
+                "is_warmup": row.is_warmup,
+                "volume": row.volume,
+                "estimated_1rm": row.estimated_1rm,
+            }
+            for row in summary.exercise_history
+        ],
         "exercises": [
             {
                 "exercise_name": ex.exercise_name,
