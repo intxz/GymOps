@@ -34,7 +34,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(gymops_training_exercise_effective_volume_kg_total{exercise=~\"${exercise:regex}\"}) or vector(0)",
+          "expr": "sum(gymops_training_exercise_effective_volume_kg_total{exercise=~\"${exercise:regex}\"})",
+          "instant": true,
           "refId": "A"
         }
       ],
@@ -56,7 +57,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(gymops_training_exercise_effective_sets_total{exercise=~\"${exercise:regex}\"}) or vector(0)",
+          "expr": "sum(gymops_training_exercise_effective_sets_total{exercise=~\"${exercise:regex}\"})",
+          "instant": true,
           "refId": "A"
         }
       ],
@@ -79,7 +81,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max(gymops_training_exercise_top_weight_kg{exercise=~\"${exercise:regex}\"}) or vector(0)",
+          "expr": "max(gymops_training_exercise_top_weight_kg{exercise=~\"${exercise:regex}\"})",
+          "instant": true,
           "refId": "A"
         }
       ],
@@ -102,7 +105,8 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max(gymops_training_exercise_estimated_1rm_kg{exercise=~\"${exercise:regex}\"}) or vector(0)",
+          "expr": "max(gymops_training_exercise_estimated_1rm_kg{exercise=~\"${exercise:regex}\"})",
+          "instant": true,
           "refId": "A"
         }
       ],
@@ -168,6 +172,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "topk(10, gymops_training_exercise_effective_volume_kg_total)",
+          "instant": true,
           "legendFormat": "{{exercise}}",
           "refId": "A"
         }
@@ -195,6 +200,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "topk(10, gymops_training_exercise_estimated_1rm_kg)",
+          "instant": true,
           "legendFormat": "{{exercise}}",
           "refId": "A"
         }
