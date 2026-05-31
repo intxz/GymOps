@@ -9,6 +9,6 @@ datasources:
     uid: prometheus
     type: prometheus
     access: proxy
-    url: http://prometheus:9090
+    url: http://gym-prometheus:9090
     isDefault: true
     editable: false
