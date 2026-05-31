@@ -32,7 +32,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(rate(gymops_http_requests_total[5m]))",
+          "expr": "sum(rate(gymops_http_requests_total[5m])) or vector(0)",
           "legendFormat": "req/s",
           "refId": "A"
         }
@@ -51,7 +51,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "100 * sum(rate(gymops_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(gymops_http_requests_total[5m])), 0.0001)",
+          "expr": "(100 * sum(rate(gymops_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(gymops_http_requests_total[5m])), 0.0001)) or vector(0)",
           "legendFormat": "error %",
           "refId": "A"
         }
@@ -70,7 +70,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(gymops_http_request_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(gymops_http_request_duration_seconds_bucket[5m]))) or vector(0)",
           "legendFormat": "p95 sec",
           "refId": "A"
         }
@@ -93,7 +93,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(gymops_http_requests_in_progress)",
+          "expr": "sum(gymops_http_requests_in_progress) or vector(0)",
           "refId": "A"
         }
       ],
@@ -115,7 +115,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(gymops_workout_sessions_total{action=\"started\"}[24h]))",
+          "expr": "sum(gymops_workout_sessions_total{action=\"started\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -137,7 +137,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(gymops_workout_sets_total{kind=\"effective\"}[24h]))",
+          "expr": "sum(gymops_workout_sets_total{kind=\"effective\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -159,7 +159,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(gymops_workout_volume_kg_total[24h]))",
+          "expr": "sum(gymops_workout_volume_kg_total) or vector(0)",
           "refId": "A"
         }
       ],
@@ -175,9 +175,9 @@
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sessions_total{action=\"started\"}[5m]))", "legendFormat": "started", "refId": "A" },
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sessions_total{action=\"completed\"}[5m]))", "legendFormat": "completed", "refId": "B" },
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sessions_total{action=\"cancelled\"}[5m]))", "legendFormat": "cancelled", "refId": "C" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(gymops_workout_sessions_total{action=\"started\"}) or vector(0)", "legendFormat": "started", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(gymops_workout_sessions_total{action=\"completed\"}) or vector(0)", "legendFormat": "completed", "refId": "B" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(gymops_workout_sessions_total{action=\"cancelled\"}) or vector(0)", "legendFormat": "cancelled", "refId": "C" }
       ],
       "title": "Workout Session Lifecycle",
       "type": "timeseries"
@@ -191,8 +191,8 @@
         "tooltip": { "mode": "multi", "sort": "desc" }
       },
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sets_total{kind=\"warmup\"}[5m]))", "legendFormat": "warmup", "refId": "A" },
-        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(rate(gymops_workout_sets_total{kind=\"effective\"}[5m]))", "legendFormat": "effective", "refId": "B" }
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(gymops_workout_sets_total{kind=\"warmup\"}) or vector(0)", "legendFormat": "warmup", "refId": "A" },
+        { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(gymops_workout_sets_total{kind=\"effective\"}) or vector(0)", "legendFormat": "effective", "refId": "B" }
       ],
       "title": "Set Recording Rate",
       "type": "timeseries"
@@ -208,7 +208,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(gymops_workout_summaries_total[24h])) by (analysis_source, ai_enabled)",
+          "expr": "sum(gymops_workout_summaries_total) by (analysis_source, ai_enabled)",
           "format": "table",
           "instant": true,
           "refId": "A"
@@ -241,6 +241,6 @@
   "timezone": "browser",
   "title": "GymOps Overview",
   "uid": "gymops-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
