@@ -198,7 +198,7 @@ Once the bot is running, send it a message on Telegram:
 
 ## API Endpoints
 
-The API exposes the following endpoints under `/api/v1`:
+The API exposes the following endpoints:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
