@@ -76,7 +76,7 @@ services:
       - backend
 
   nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:2.15.0
+    image: jc21/nginx-proxy-manager:${NPM_IMAGE_TAG:-latest}
     container_name: gym-npm
     environment:
       TZ: ${TZ:-Europe/Madrid}
