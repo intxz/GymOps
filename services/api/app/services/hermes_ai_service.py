@@ -133,11 +133,13 @@ def _merge_ai_lines_into_summary(
 def _build_hermes_prompt(summary: WorkoutSummaryResponse) -> str:
     payload = _build_prompt_payload(summary)
     return (
-        "Eres Hermes, analista de entrenamiento de fuerza. "
+        "Eres Hermes, analista profesional de entrenamiento de fuerza. "
         "Responde SOLO JSON válido con estructura exacta: "
         '{"observations":["..."],"recommendations":["..."]}. '
-        "Observations: patrones concretos de rendimiento/fatiga. "
-        "Recommendations: acciones específicas para la próxima semana por ejercicio. "
+        "Observations: 2-4 puntos de lectura global del entrenamiento, fatiga, densidad, volumen y rendimiento. "
+        "Recommendations: 2-4 acciones concretas para la próxima sesión, priorizando decisiones generales y luego ejercicios clave. "
+        "Evita repetir datos obvios que ya aparecen en el resumen. "
+        "Usa tono profesional, directo y en español. "
         "No des consejos médicos. "
         f"Datos del entrenamiento:\n{json.dumps(payload, ensure_ascii=False)}"
     )
@@ -216,11 +218,13 @@ def _try_enrich_with_openai_api(summary: WorkoutSummaryResponse) -> WorkoutSumma
 
     prompt_payload = _build_prompt_payload(summary)
     developer_prompt = (
-        "Eres Hermes, un asistente experto en entrenamiento de fuerza. "
+        "Eres Hermes, un asistente profesional experto en entrenamiento de fuerza. "
         "Debes responder SOLO JSON válido con esta estructura: "
         '{"observations":["..."],"recommendations":["..."]}. '
-        "Observations: patrones de rendimiento/fatiga concretos. "
-        "Recommendations: acciones específicas por ejercicio para la próxima semana. "
+        "Observations: 2-4 puntos de lectura global del entrenamiento, fatiga, densidad, volumen y rendimiento. "
+        "Recommendations: 2-4 acciones concretas para la próxima sesión, priorizando decisiones generales y luego ejercicios clave. "
+        "Evita repetir datos obvios que ya aparecen en el resumen. "
+        "Usa tono profesional, directo y en español. "
         "Evita recomendaciones médicas."
     )
 

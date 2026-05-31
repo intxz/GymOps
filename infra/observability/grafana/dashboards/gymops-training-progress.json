@@ -34,7 +34,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(gymops_training_exercise_effective_volume_kg_total{exercise=~\"$exercise\"}) or vector(0)",
+          "expr": "sum(gymops_training_exercise_effective_volume_kg_total{exercise=~\"${exercise:regex}\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -56,7 +56,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(gymops_training_exercise_effective_sets_total{exercise=~\"$exercise\"}) or vector(0)",
+          "expr": "sum(gymops_training_exercise_effective_sets_total{exercise=~\"${exercise:regex}\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -79,7 +79,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max(gymops_training_exercise_top_weight_kg{exercise=~\"$exercise\"}) or vector(0)",
+          "expr": "max(gymops_training_exercise_top_weight_kg{exercise=~\"${exercise:regex}\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -102,7 +102,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "max(gymops_training_exercise_estimated_1rm_kg{exercise=~\"$exercise\"}) or vector(0)",
+          "expr": "max(gymops_training_exercise_estimated_1rm_kg{exercise=~\"${exercise:regex}\"}) or vector(0)",
           "refId": "A"
         }
       ],
@@ -121,7 +121,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "gymops_training_exercise_estimated_1rm_kg{exercise=~\"$exercise\"}",
+          "expr": "gymops_training_exercise_estimated_1rm_kg{exercise=~\"${exercise:regex}\"}",
           "legendFormat": "{{exercise}}",
           "refId": "A"
         }
@@ -141,7 +141,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "gymops_training_exercise_effective_volume_kg_total{exercise=~\"$exercise\"}",
+          "expr": "gymops_training_exercise_effective_volume_kg_total{exercise=~\"${exercise:regex}\"}",
           "legendFormat": "{{exercise}}",
           "refId": "A"
         }
@@ -213,7 +213,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "gymops_training_exercise_last_rpe{exercise=~\"$exercise\"}",
+          "expr": "gymops_training_exercise_last_rpe{exercise=~\"${exercise:regex}\"}",
           "legendFormat": "{{exercise}}",
           "refId": "A"
         }

@@ -30,18 +30,45 @@ def _fmt_set_line(set_row: dict[str, Any]) -> str:
     return f"{weight}x{reps} @RPE{rpe}{suffix}"
 
 
+def _clean_analysis_line(text: Any) -> str | None:
+    if not isinstance(text, str):
+        return None
+    cleaned = text.strip()
+    if not cleaned:
+        return None
+    return cleaned.removeprefix("Hermes IA:").strip()
+
+
+def _effective_volume_by_exercise(exercises: list[dict[str, Any]]) -> str:
+    volumes: list[str] = []
+    for exercise in exercises:
+        name = exercise.get("exercise_name", "Ejercicio")
+        volume = exercise.get("volume_effective", 0)
+        volumes.append(f"{name}: {volume} kg")
+    return "; ".join(volumes) if volumes else "Sin volumen efectivo."
+
+
 def _render_end_summary(payload: dict[str, Any]) -> str:
     session = payload.get("session", {})
     summary = payload.get("summary", {})
     duration = _format_duration(int(session.get("duration_seconds") or 0))
+    exercises = summary.get("exercises", [])
+    observations = [_clean_analysis_line(obs) for obs in summary.get("observations", [])]
+    observations = [obs for obs in observations if obs]
+    recommendations = [_clean_analysis_line(rec) for rec in summary.get("recommendations", [])]
+    recommendations = [rec for rec in recommendations if rec]
 
     lines: list[str] = []
     lines.append("Entreno finalizado.")
     lines.append("")
     lines.append(f"Duración: {duration}")
+    lines.append(f"Series efectivas: {summary.get('effective_sets', 0)}")
+    lines.append(f"Calentamiento: {summary.get('warmup_sets', 0)}")
+    lines.append(f"Volumen total: {summary.get('volume_total', 0)} kg")
+    lines.append(f"Volumen efectivo: {_effective_volume_by_exercise(exercises)}")
     lines.append("")
 
-    exercises = summary.get("exercises", [])
+    lines.append("Trabajo por ejercicio:")
     for exercise in exercises:
         name = exercise.get("exercise_name", "Ejercicio")
         lines.append(f"{name}:")
@@ -57,16 +84,15 @@ def _render_end_summary(payload: dict[str, Any]) -> str:
         lines.append(f"- Volumen efectivo: {exercise.get('volume_effective', 0)} kg")
         lines.append("")
 
-    lines.append("Resumen:")
-    lines.append(f"- {summary.get('effective_sets', 0)} series efectivas")
-    lines.append(f"- {summary.get('warmup_sets', 0)} series de calentamiento")
-    lines.append(f"- Volumen total: {summary.get('volume_total', 0)} kg")
+    if observations:
+        lines.append("Lectura general:")
+        for obs in observations[:4]:
+            lines.append(f"- {obs}")
 
-    recommendations = summary.get("recommendations", [])
     if recommendations:
         lines.append("")
-        lines.append("Mejora para la próxima semana:")
-        for rec in recommendations[:3]:
+        lines.append("Plan próxima sesión:")
+        for rec in recommendations[:4]:
             lines.append(f"- {rec}")
 
     return "\n".join(lines)
