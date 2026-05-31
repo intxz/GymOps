@@ -1,0 +1,229 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(gymops_http_requests_total[5m]))",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "id": 2,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(gymops_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(gymops_http_requests_total[5m])), 0.0001)",
+          "legendFormat": "error %",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP 5xx Error Rate %",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "id": 3,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(gymops_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 sec",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP P95 Latency (s)",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(gymops_http_requests_in_progress)",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests In Progress",
+      "type": "stat"
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(gymops_workout_sessions_total{action=\"started\"}[24h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Sessions Started (24h)",
+      "type": "stat"
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(gymops_workout_sets_total{kind=\"effective\"}[24h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Effective Sets (24h)",
+      "type": "stat"
+    },
+    {
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(gymops_workout_volume_kg_total[24h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Volume kg (24h)",
+      "type": "stat"
+    },
+    {
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 16 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        { "expr": "sum(rate(gymops_workout_sessions_total{action=\"started\"}[5m]))", "legendFormat": "started", "refId": "A" },
+        { "expr": "sum(rate(gymops_workout_sessions_total{action=\"completed\"}[5m]))", "legendFormat": "completed", "refId": "B" },
+        { "expr": "sum(rate(gymops_workout_sessions_total{action=\"cancelled\"}[5m]))", "legendFormat": "cancelled", "refId": "C" }
+      ],
+      "title": "Workout Session Lifecycle",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 16 },
+      "id": 9,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        { "expr": "sum(rate(gymops_workout_sets_total{kind=\"warmup\"}[5m]))", "legendFormat": "warmup", "refId": "A" },
+        { "expr": "sum(rate(gymops_workout_sets_total{kind=\"effective\"}[5m]))", "legendFormat": "effective", "refId": "B" }
+      ],
+      "title": "Set Recording Rate",
+      "type": "timeseries"
+    },
+    {
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 },
+      "id": 10,
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Value" }]
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(gymops_workout_summaries_total[24h])) by (analysis_source, ai_enabled)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Summary Source (24h)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "analysis_source": "Source",
+              "ai_enabled": "AI Enabled",
+              "Value": "Count 24h"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "style": "dark",
+  "tags": ["gymops", "fitness", "observability"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "GymOps Overview",
+  "uid": "gymops-overview",
+  "version": 1,
+  "weekStart": ""
+}
+

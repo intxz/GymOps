@@ -1,0 +1,77 @@
+services:
+  gym-api:
+    build:
+      context: ../../services/api
+    container_name: gym-api
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/gymops.db}
+    ports:
+      - "8000:8000"
+    volumes:
+      - gymops_data:/data
+      # Mount Hermes local profile so gym-api can reuse OAuth auth via Hermes CLI.
+      - ${HERMES_HOME_HOST:-${HOME}/.hermes}:/root/.hermes
+    restart: unless-stopped
+
+  telegram-bot:
+    build:
+      context: ../../services/bot
+    container_name: gym-telegram-bot
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      API_BASE_URL: ${API_BASE_URL:-http://gym-api:8000}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    depends_on:
+      - gym-api
+    volumes:
+      - gymops_data:/data
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: gym-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - gym-api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    container_name: gym-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  gymops_data:
+    name: gymops_data
+  prometheus_data:
+    name: gym_prometheus_data
+  grafana_data:
+    name: gym_grafana_data

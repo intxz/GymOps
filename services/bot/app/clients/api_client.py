@@ -1,0 +1,125 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+import httpx
+
+
+@dataclass
+class ApiResult:
+    ok: bool
+    status_code: int
+    data: dict[str, Any] | None = None
+    error: str | None = None
+    message: str | None = None
+
+
+class GymApiClient:
+    def __init__(self, base_url: str, timeout_seconds: float = 8.0) -> None:
+        self._client = httpx.AsyncClient(
+            base_url=base_url.rstrip("/"),
+            timeout=timeout_seconds,
+            headers={"Content-Type": "application/json"},
+        )
+
+    async def close(self) -> None:
+        await self._client.aclose()
+
+    async def start_session(self, telegram_user_id: int, username: str | None) -> ApiResult:
+        return await self._post(
+            "/sessions/start",
+            {
+                "telegram_user_id": telegram_user_id,
+                "username": username,
+            },
+        )
+
+    async def end_session(self, telegram_user_id: int) -> ApiResult:
+        return await self._post("/sessions/end", {"telegram_user_id": telegram_user_id})
+
+    async def cancel_session(self, telegram_user_id: int) -> ApiResult:
+        return await self._post("/sessions/cancel", {"telegram_user_id": telegram_user_id})
+
+    async def active_session(self, telegram_user_id: int) -> ApiResult:
+        return await self._get("/sessions/active", params={"telegram_user_id": telegram_user_id})
+
+    async def add_set(
+        self,
+        telegram_user_id: int,
+        exercise_name: str,
+        weight: float,
+        reps: int,
+        rpe: float,
+    ) -> ApiResult:
+        return await self._post(
+            "/sets",
+            {
+                "telegram_user_id": telegram_user_id,
+                "exercise_name": exercise_name,
+                "weight": weight,
+                "reps": reps,
+                "rpe": rpe,
+            },
+        )
+
+    async def _post(self, path: str, payload: dict[str, Any]) -> ApiResult:
+        try:
+            response = await self._client.post(path, json=payload)
+            return self._to_result(response)
+        except httpx.RequestError:
+            return ApiResult(
+                ok=False,
+                status_code=503,
+                error="API_UNAVAILABLE",
+                message="No puedo conectar con la API de GymOps ahora mismo.",
+            )
+
+    async def _get(self, path: str, params: dict[str, Any]) -> ApiResult:
+        try:
+            response = await self._client.get(path, params=params)
+            return self._to_result(response)
+        except httpx.RequestError:
+            return ApiResult(
+                ok=False,
+                status_code=503,
+                error="API_UNAVAILABLE",
+                message="No puedo conectar con la API de GymOps ahora mismo.",
+            )
+
+    @staticmethod
+    def _to_result(response: httpx.Response) -> ApiResult:
+        status_code = response.status_code
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {"message": "Respuesta inválida de la API."}
+
+        if 200 <= status_code < 300:
+            return ApiResult(ok=True, status_code=status_code, data=payload)
+
+        detail = payload.get("detail")
+        if isinstance(detail, dict):
+            return ApiResult(
+                ok=False,
+                status_code=status_code,
+                error=detail.get("error", "API_ERROR"),
+                message=detail.get("message", "Error en API."),
+                data=payload,
+            )
+        if isinstance(detail, list):
+            return ApiResult(
+                ok=False,
+                status_code=status_code,
+                error="VALIDATION_ERROR",
+                message="Datos inválidos. Revisa el formato y vuelve a intentarlo.",
+                data=payload,
+            )
+
+        return ApiResult(
+            ok=False,
+            status_code=status_code,
+            error="API_ERROR",
+            message=payload.get("message", "Error en API."),
+            data=payload,
+        )
