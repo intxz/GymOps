@@ -112,4 +112,3 @@ networks:
     name: gym_edge
   backend:
     name: gym_backend
-    internal: true
