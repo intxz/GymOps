@@ -141,13 +141,16 @@ Credenciales Grafana (local):
 Dashboard provisionado:
 
 - `GymOps Overview` (carpeta `GymOps`)
+- `GymOps Training Progress` (progreso por ejercicio)
 - archivo: `infra/observability/grafana/dashboards/gymops-overview.json`
+- archivo: `infra/observability/grafana/dashboards/gymops-training-progress.json`
 
 Métricas API:
 
 - endpoint: `GET /metrics`
 - HTTP (rate, errores, latencia, in-flight)
 - dominio GymOps (sesiones, sets, volumen, fuente de análisis IA/local)
+- entrenamiento por ejercicio (volumen efectivo, series efectivas, mejor peso, e1RM estimado, RPE)
 
 Seguridad recomendada:
 

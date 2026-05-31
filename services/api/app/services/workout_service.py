@@ -10,6 +10,7 @@ from app.db.models.exercise import Exercise
 from app.db.models.set_entry import SetEntry
 from app.db.models.workout_session import WorkoutSession, WorkoutStatus
 from app.observability.metrics import (
+    hydrate_training_exercise_metrics,
     record_session_cancelled,
     record_session_completed,
     record_session_started,
@@ -44,6 +45,48 @@ _LOWER_BODY_HINTS = (
 
 def utc_now() -> datetime:
     return datetime.utcnow()
+
+
+def hydrate_training_observability(db: Session) -> None:
+    stats_stmt = (
+        select(
+            Exercise.normalized_name,
+            func.sum(case((SetEntry.is_warmup.is_(False), 1), else_=0)),
+            func.sum(case((SetEntry.is_warmup.is_(True), 1), else_=0)),
+            func.sum(case((SetEntry.is_warmup.is_(False), SetEntry.weight * SetEntry.reps), else_=0.0)),
+            func.max(case((SetEntry.is_warmup.is_(False), SetEntry.weight), else_=None)),
+            func.max(case((SetEntry.is_warmup.is_(False), SetEntry.weight * (1 + SetEntry.reps / 30.0)), else_=None)),
+        )
+        .join(SetEntry, SetEntry.exercise_id == Exercise.id)
+        .join(WorkoutSession, WorkoutSession.id == SetEntry.workout_session_id)
+        .where(WorkoutSession.status == WorkoutStatus.completed)
+        .group_by(Exercise.id)
+    )
+
+    for row in db.execute(stats_stmt).all():
+        exercise_name = str(row[0])
+        last_rpe_stmt = (
+            select(SetEntry.rpe)
+            .join(WorkoutSession, WorkoutSession.id == SetEntry.workout_session_id)
+            .join(Exercise, Exercise.id == SetEntry.exercise_id)
+            .where(
+                Exercise.normalized_name == exercise_name,
+                WorkoutSession.status == WorkoutStatus.completed,
+                SetEntry.is_warmup.is_(False),
+            )
+            .order_by(WorkoutSession.ended_at.desc(), SetEntry.id.desc())
+            .limit(1)
+        )
+        last_rpe = db.execute(last_rpe_stmt).scalar_one_or_none()
+        hydrate_training_exercise_metrics(
+            exercise=exercise_name,
+            effective_sets=int(row[1] or 0),
+            warmup_sets=int(row[2] or 0),
+            effective_volume=float(row[3] or 0.0),
+            top_weight=float(row[4]) if row[4] is not None else None,
+            best_estimated_1rm=float(row[5]) if row[5] is not None else None,
+            last_rpe=float(last_rpe) if last_rpe is not None else None,
+        )
 
 
 def normalize_exercise_name(raw_name: str) -> str:
@@ -211,7 +254,13 @@ def add_set(
     )
     db.commit()
     db.refresh(set_entry)
-    record_set_added(is_warmup=is_warmup, weight=weight, reps=reps)
+    record_set_added(
+        is_warmup=is_warmup,
+        weight=weight,
+        reps=reps,
+        exercise=exercise.normalized_name,
+        rpe=rpe,
+    )
 
     effective_count, warmup_count = set_repository.count_for_session_exercise(
         db=db, workout_session_id=session.id, exercise_id=exercise.id

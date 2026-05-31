@@ -44,6 +44,45 @@ WORKOUT_SUMMARIES_TOTAL = Counter(
     labelnames=("analysis_source", "ai_enabled"),
 )
 
+TRAINING_EXERCISE_EFFECTIVE_SETS_TOTAL = Counter(
+    "gymops_training_exercise_effective_sets_total",
+    "Effective sets recorded by exercise.",
+    labelnames=("exercise",),
+)
+
+TRAINING_EXERCISE_WARMUP_SETS_TOTAL = Counter(
+    "gymops_training_exercise_warmup_sets_total",
+    "Warmup sets recorded by exercise.",
+    labelnames=("exercise",),
+)
+
+TRAINING_EXERCISE_EFFECTIVE_VOLUME_KG_TOTAL = Counter(
+    "gymops_training_exercise_effective_volume_kg_total",
+    "Effective workout volume in kg by exercise.",
+    labelnames=("exercise",),
+)
+
+TRAINING_EXERCISE_TOP_WEIGHT_KG = Gauge(
+    "gymops_training_exercise_top_weight_kg",
+    "Best effective set weight by exercise.",
+    labelnames=("exercise",),
+)
+
+TRAINING_EXERCISE_ESTIMATED_1RM_KG = Gauge(
+    "gymops_training_exercise_estimated_1rm_kg",
+    "Best estimated one-rep max by exercise using the Epley formula.",
+    labelnames=("exercise",),
+)
+
+TRAINING_EXERCISE_LAST_RPE = Gauge(
+    "gymops_training_exercise_last_rpe",
+    "Last effective set RPE by exercise.",
+    labelnames=("exercise",),
+)
+
+_top_weight_by_exercise: dict[str, float] = {}
+_best_e1rm_by_exercise: dict[str, float] = {}
+
 # ASGI endpoint for /metrics.
 metrics_asgi_app = make_asgi_app()
 
@@ -60,9 +99,65 @@ def record_session_cancelled() -> None:
     WORKOUT_SESSIONS_TOTAL.labels(action="cancelled").inc()
 
 
-def record_set_added(*, is_warmup: bool, weight: float, reps: int) -> None:
+def _estimated_1rm(weight: float, reps: int) -> float:
+    return max(weight, 0.0) * (1 + max(reps, 0) / 30)
+
+
+def _update_training_gauges(*, exercise: str, weight: float, reps: int, rpe: float) -> None:
+    current_top_weight = _top_weight_by_exercise.get(exercise, 0.0)
+    if weight > current_top_weight:
+        _top_weight_by_exercise[exercise] = weight
+        TRAINING_EXERCISE_TOP_WEIGHT_KG.labels(exercise=exercise).set(weight)
+
+    estimated_1rm = _estimated_1rm(weight=weight, reps=reps)
+    current_best_e1rm = _best_e1rm_by_exercise.get(exercise, 0.0)
+    if estimated_1rm > current_best_e1rm:
+        _best_e1rm_by_exercise[exercise] = estimated_1rm
+        TRAINING_EXERCISE_ESTIMATED_1RM_KG.labels(exercise=exercise).set(round(estimated_1rm, 2))
+
+    TRAINING_EXERCISE_LAST_RPE.labels(exercise=exercise).set(rpe)
+
+
+def record_set_added(*, is_warmup: bool, weight: float, reps: int, exercise: str | None = None, rpe: float = 0.0) -> None:
     WORKOUT_SETS_TOTAL.labels(kind="warmup" if is_warmup else "effective").inc()
     WORKOUT_VOLUME_KG_TOTAL.inc(max(weight, 0.0) * max(reps, 0))
+
+    if exercise is None:
+        return
+    if is_warmup:
+        TRAINING_EXERCISE_WARMUP_SETS_TOTAL.labels(exercise=exercise).inc()
+        return
+
+    volume = max(weight, 0.0) * max(reps, 0)
+    TRAINING_EXERCISE_EFFECTIVE_SETS_TOTAL.labels(exercise=exercise).inc()
+    TRAINING_EXERCISE_EFFECTIVE_VOLUME_KG_TOTAL.labels(exercise=exercise).inc(volume)
+    _update_training_gauges(exercise=exercise, weight=weight, reps=reps, rpe=rpe)
+
+
+def hydrate_training_exercise_metrics(
+    *,
+    exercise: str,
+    effective_sets: int,
+    warmup_sets: int,
+    effective_volume: float,
+    top_weight: float | None,
+    best_estimated_1rm: float | None,
+    last_rpe: float | None,
+) -> None:
+    if warmup_sets > 0:
+        TRAINING_EXERCISE_WARMUP_SETS_TOTAL.labels(exercise=exercise).inc(warmup_sets)
+    if effective_sets > 0:
+        TRAINING_EXERCISE_EFFECTIVE_SETS_TOTAL.labels(exercise=exercise).inc(effective_sets)
+    if effective_volume > 0:
+        TRAINING_EXERCISE_EFFECTIVE_VOLUME_KG_TOTAL.labels(exercise=exercise).inc(effective_volume)
+    if top_weight is not None:
+        _top_weight_by_exercise[exercise] = top_weight
+        TRAINING_EXERCISE_TOP_WEIGHT_KG.labels(exercise=exercise).set(top_weight)
+    if best_estimated_1rm is not None:
+        _best_e1rm_by_exercise[exercise] = best_estimated_1rm
+        TRAINING_EXERCISE_ESTIMATED_1RM_KG.labels(exercise=exercise).set(round(best_estimated_1rm, 2))
+    if last_rpe is not None:
+        TRAINING_EXERCISE_LAST_RPE.labels(exercise=exercise).set(last_rpe)
 
 
 def record_summary_generated(*, analysis_source: str, ai_enabled: bool) -> None:
@@ -70,4 +165,3 @@ def record_summary_generated(*, analysis_source: str, ai_enabled: bool) -> None:
         analysis_source=analysis_source or "unknown",
         ai_enabled="true" if ai_enabled else "false",
     ).inc()
-
