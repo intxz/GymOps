@@ -2,11 +2,11 @@ import logging
 import time
 
 from fastapi import FastAPI, Request, Response
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.api.v1 import router as v1_router
+from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.base import Base
@@ -18,8 +18,6 @@ from app.services.workout_service import hydrate_training_observability
 
 logger = logging.getLogger(__name__)
 
-# Rate limiter: 100 requests per minute per IP.
-limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="GymOps API", version="0.6.0-phase6")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

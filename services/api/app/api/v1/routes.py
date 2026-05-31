@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, verify_api_key
-from app.main import limiter
+from app.core.limiter import limiter
 from app.schemas.sessions import (
     ActiveSessionStatusResponse,
     EndSessionResponse,
