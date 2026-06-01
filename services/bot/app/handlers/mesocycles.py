@@ -40,6 +40,15 @@ async def plan_command(message: Message, api_client: GymApiClient) -> None:
             f"🗓️ {progress}",
             f"📊 RPE objetivo: {current_week.get('target_rpe_range', '?')}",
         ]
+
+        # Show completion suggestion for week 12
+        week_num = current_week.get('week_number', 0)
+        total = mesocycle.get('weeks_total', 0)
+        if week_num == total and total == 12:
+            lines.append("")
+            lines.append("🏁 ¡Última semana del programa!")
+            lines.append("Al finalizar, puedes repetir con /plan nuevo o descansar.")
+
         await message.answer("\n".join(lines))
         return
 
@@ -49,7 +58,8 @@ async def plan_command(message: Message, api_client: GymApiClient) -> None:
         if len(parts) < 3 or not parts[2].strip():
             await message.answer(
                 "Uso: /plan nuevo <nombre> <semanas>\n"
-                "Ejemplo: /plan nuevo Fuerza 4\n"
+                "Ejemplo: /plan nuevo Fuerza 12\n"
+                "Recomendado: 12 semanas (Foundation + Ramping)\n"
                 "Objetivos: fuerza, hipertrofia, mixto (default)."
             )
             return

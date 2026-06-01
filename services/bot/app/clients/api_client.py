@@ -118,6 +118,19 @@ class GymApiClient:
             params={"telegram_user_id": telegram_user_id},
         )
 
+    async def check_user(self, telegram_user_id: int) -> ApiResult:
+        return await self._get("/admin/check", params={"telegram_user_id": telegram_user_id})
+
+    async def authorize_user(self, admin_telegram_user_id: int, target_telegram_user_id: int) -> ApiResult:
+        return await self._post(
+            "/admin/authorize",
+            {},
+            params={
+                "admin_telegram_user_id": admin_telegram_user_id,
+                "target_telegram_user_id": target_telegram_user_id,
+            },
+        )
+
     async def _post(self, path: str, payload: dict[str, Any], params: dict[str, Any] | None = None) -> ApiResult:
         try:
             response = await self._client.post(path, json=payload, params=params)

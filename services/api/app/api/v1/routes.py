@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, verify_api_key
+from app.api.v1.admin import router as admin_router
 from app.api.v1.coaches import router as coaches_router
 from app.api.v1.mesocycles import router as mesocycles_router
 from app.core.limiter import limiter
@@ -30,6 +31,7 @@ from app.services.workout_service import (
 )
 
 router = APIRouter(dependencies=[Depends(verify_api_key)])
+router.include_router(admin_router)
 router.include_router(coaches_router)
 router.include_router(mesocycles_router)
 

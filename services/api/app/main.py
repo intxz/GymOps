@@ -14,12 +14,14 @@ from app.db.models import CoachProfile, Exercise, Mesocycle, MesocycleWeek, SetE
 from app.db.session import SessionLocal, engine
 from app.observability.metrics import metrics_asgi_app
 from app.observability.middleware import prometheus_http_metrics_middleware
+from app.db.migrations import run_sqlite_migrations
 from app.db.seed_coaches import seed_builtin_coaches
+from app.repositories import user_repository
 from app.services.workout_service import hydrate_training_observability
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="GymOps API", version="0.8.0-mesocycles")
+app = FastAPI(title="GymOps API", version="0.9.0-nippard")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -27,9 +29,18 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 @app.on_event("startup")
 def on_startup() -> None:
     setup_logging(settings.log_level)
+    run_sqlite_migrations(engine)
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         seed_builtin_coaches(db)
+        # Make the first ever user an admin and authorized automatically
+        first_user = user_repository.get_first_user(db=db)
+        if first_user is not None and not first_user.is_admin:
+            first_user.is_admin = True
+            first_user.is_authorized = True
+            db.add(first_user)
+            db.commit()
+            logger.info("First user %s promoted to admin", first_user.telegram_user_id)
         hydrate_training_observability(db)
 
 

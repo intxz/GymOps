@@ -553,9 +553,20 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
             mesocycle_observations.append(
                 f"Objetivo RPE esta semana: {current_week.target_rpe_range}"
             )
+            # Add Nippard-style techniques for 12-week programs
+            techniques = mesocycle_repository.get_week_techniques(
+                week_number=current_week.week_number,
+                total_weeks=active_meso.weeks_total,
+            )
+            for tech in techniques:
+                mesocycle_observations.append(tech)
             # Simple phase-based recommendation
-            if mesocycle_phase == "accumulation":
+            if mesocycle_phase == "intro":
+                mesocycle_observations.append("Semana intro/deload: familiarízate, no busques máximos.")
+            elif mesocycle_phase == "accumulation":
                 mesocycle_observations.append("Fase de acumulación: prioriza volumen sobre intensidad.")
+            elif mesocycle_phase in ("ramping_1", "ramping_2", "ramping_3"):
+                mesocycle_observations.append("Fase de ramping: aumenta volumen progresivamente.")
             elif mesocycle_phase == "intensification":
                 mesocycle_observations.append("Fase de intensificación: es momento de empujar la carga.")
             elif mesocycle_phase == "deload":

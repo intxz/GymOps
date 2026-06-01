@@ -31,7 +31,7 @@ def _clean_lines(values: Iterable[Any], max_items: int = 6) -> list[str]:
 
 
 def _build_prompt_payload(summary: WorkoutSummaryResponse) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "session_id": summary.session_id,
         "duration_seconds": summary.duration_seconds,
         "effective_sets": summary.effective_sets,
@@ -75,6 +75,15 @@ def _build_prompt_payload(summary: WorkoutSummaryResponse) -> dict[str, Any]:
             for ex in summary.exercises
         ],
     }
+    # Include mesocycle context for coach-aware recommendations
+    if summary.mesocycle_name:
+        payload["mesocycle_context"] = {
+            "name": summary.mesocycle_name,
+            "week": summary.mesocycle_week,
+            "phase": summary.mesocycle_phase,
+            "observations": summary.mesocycle_observations,
+        }
+    return payload
 
 
 def _mark_local_fallback(summary: WorkoutSummaryResponse) -> WorkoutSummaryResponse:

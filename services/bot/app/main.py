@@ -3,8 +3,9 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from app.clients.api_client import GymApiClient
+from app.core.auth_middleware import AuthMiddleware
 from app.core.config import settings
-from app.handlers import coaches_router, dynamic_exercise_router, fallback_router, mesocycles_router, reserved_router
+from app.handlers import admin_router, coaches_router, dynamic_exercise_router, fallback_router, mesocycles_router, reserved_router
 
 
 async def run() -> None:
@@ -27,7 +28,11 @@ async def run() -> None:
     )
     dp["api_client"] = api_client
 
+    # Auth middleware: blocks unauthorized users from most commands
+    dp.message.middleware(AuthMiddleware())
+
     dp.include_router(reserved_router)
+    dp.include_router(admin_router)
     dp.include_router(coaches_router)
     dp.include_router(mesocycles_router)
     dp.include_router(dynamic_exercise_router)

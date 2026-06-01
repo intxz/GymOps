@@ -130,6 +130,8 @@ async def help_command(message: Message) -> None:
         "/plan - ver plan de entrenamiento\n"
         "/historial <ejercicio> - historial\n"
         "/help - ayuda\n\n"
+        "Admin:\n"
+        "/autorizar <telegram_id> - autoriza usuario\n\n"
         "Formato de series:\n"
         "/<ejercicio> PESOxREPS RPE\n"
         "Ejemplo: /sentadilla 100x5 8\n"
@@ -143,6 +145,22 @@ async def start_command(message: Message, api_client: GymApiClient) -> None:
     if message.from_user is None:
         await message.answer("No pude identificar tu usuario de Telegram.")
         return
+
+    # Check authorization first (this also registers the user in DB)
+    auth_result = await api_client.check_user(
+        telegram_user_id=message.from_user.id,
+    )
+    if auth_result.ok and auth_result.data:
+        user_data = auth_result.data
+        if not user_data.get("authorized", False):
+            welcome = (
+                "👋 ¡Bienvenido a GymOps!\n\n"
+                "Actualmente no tienes acceso autorizado.\n"
+                f"Tu ID de Telegram es: `{message.from_user.id}`\n\n"
+                "Comparte este ID con el administrador para que te autorice."
+            )
+            await message.answer(welcome, parse_mode="Markdown")
+            return
 
     result = await api_client.start_session(
         telegram_user_id=message.from_user.id,
