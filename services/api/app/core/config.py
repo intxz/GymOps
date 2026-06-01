@@ -21,3 +21,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Hardening: force API_SECRET_KEY in non-local environments.
+if settings.app_env != "local" and not settings.api_secret_key:
+    raise RuntimeError(
+        "API_SECRET_KEY must be set when APP_ENV is not 'local'. "
+        "Set a strong random string in your .env file."
+    )

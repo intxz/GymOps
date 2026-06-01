@@ -118,6 +118,7 @@ async def help_command(message: Message) -> None:
         "/status - estado actual\n"
         "/end - finaliza y genera resumen\n"
         "/cancel - cancela sesión activa\n"
+        "/coach - elige tu entrenador IA\n"
         "/help - ayuda\n\n"
         "Formato de series:\n"
         "/<ejercicio> PESOxREPS RPE\n"

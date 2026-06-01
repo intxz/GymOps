@@ -17,7 +17,7 @@ from app.observability.metrics import (
     record_set_added,
     record_summary_generated,
 )
-from app.repositories import exercise_repository, session_repository, set_repository, user_repository
+from app.repositories import coach_repository, exercise_repository, session_repository, set_repository, user_preference_repository, user_repository
 from app.schemas.sessions import ActiveSessionStatusResponse, SessionInfo
 from app.schemas.sets import SetCreateResponse
 from app.schemas.stats import ExerciseHistoryEntry, ExerciseHistoryResponse, ExerciseStatsResponse
@@ -178,7 +178,14 @@ def end_session(db: Session, telegram_user_id: int) -> tuple[SessionInfo, Workou
     record_session_completed()
 
     summary = build_summary(db=db, telegram_user_id=telegram_user_id, session_id=session.id)
-    summary = enrich_summary_with_hermes_ai(summary)
+
+    # Load selected coach for AI enrichment
+    coach = None
+    pref = user_preference_repository.get_by_user_id(db=db, user_id=user.id)
+    if pref is not None and pref.selected_coach_id is not None:
+        coach = coach_repository.get_by_id(db=db, coach_id=pref.selected_coach_id)
+
+    summary = enrich_summary_with_hermes_ai(summary, coach=coach)
     record_summary_generated(analysis_source=summary.analysis_source, ai_enabled=summary.ai_enabled)
     return _session_info(session), summary
 

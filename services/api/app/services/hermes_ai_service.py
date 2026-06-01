@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.db.models.coach_profile import CoachProfile
 from app.schemas.stats import ExerciseHistoryResponse
 from app.schemas.summary import WorkoutSummaryResponse
 
@@ -198,8 +199,13 @@ def _run_hermes_json_prompt(prompt: str) -> tuple[list[str], list[str], str | No
     return observations, recommendations, settings.hermes_model or settings.openai_model or "hermes-default"
 
 
-def _build_hermes_prompt(summary: WorkoutSummaryResponse) -> str:
+def _build_hermes_prompt(summary: WorkoutSummaryResponse, coach: CoachProfile | None = None) -> str:
     payload = _build_prompt_payload(summary)
+    if coach is not None:
+        return (
+            f"{coach.persona_prompt}\n\n"
+            f"Datos del entrenamiento:\n{json.dumps(payload, ensure_ascii=False)}"
+        )
     return (
         "Eres Hermes, analista profesional de entrenamiento de fuerza. "
         "Responde SOLO JSON válido con estructura exacta: "
@@ -213,26 +219,27 @@ def _build_hermes_prompt(summary: WorkoutSummaryResponse) -> str:
     )
 
 
-def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse) -> WorkoutSummaryResponse | None:
+def _try_enrich_with_hermes_oauth(summary: WorkoutSummaryResponse, coach: CoachProfile | None = None) -> WorkoutSummaryResponse | None:
     if not settings.hermes_oauth_enabled:
         return None
 
-    prompt = _build_hermes_prompt(summary)
+    prompt = _build_hermes_prompt(summary, coach=coach)
     result = _run_hermes_json_prompt(prompt)
     if result is None:
         return None
 
     ai_observations, ai_recommendations, ai_model = result
+    source = f"hermes_oauth_{coach.slug}" if coach else "hermes_oauth"
     return _merge_ai_lines_into_summary(
         summary=summary,
         ai_observations=ai_observations,
         ai_recommendations=ai_recommendations,
-        analysis_source="hermes_oauth",
+        analysis_source=source,
         ai_model=ai_model,
     )
 
 
-def _try_enrich_with_openai_api(summary: WorkoutSummaryResponse) -> WorkoutSummaryResponse | None:
+def _try_enrich_with_openai_api(summary: WorkoutSummaryResponse, coach: CoachProfile | None = None) -> WorkoutSummaryResponse | None:
     if not settings.openai_enabled:
         return None
 
@@ -241,16 +248,19 @@ def _try_enrich_with_openai_api(summary: WorkoutSummaryResponse) -> WorkoutSumma
         return None
 
     prompt_payload = _build_prompt_payload(summary)
-    developer_prompt = (
-        "Eres Hermes, un asistente profesional experto en entrenamiento de fuerza. "
-        "Debes responder SOLO JSON válido con esta estructura: "
-        '{"observations":["..."],"recommendations":["..."]}. '
-        "Observations: 2-4 puntos de lectura global del entrenamiento, fatiga, densidad, volumen y rendimiento. "
-        "Recommendations: 2-4 acciones concretas para la próxima sesión, priorizando decisiones generales y luego ejercicios clave. "
-        "Evita repetir datos obvios que ya aparecen en el resumen. "
-        "Usa tono profesional, directo y en español. "
-        "Evita recomendaciones médicas."
-    )
+    if coach is not None:
+        developer_prompt = coach.persona_prompt
+    else:
+        developer_prompt = (
+            "Eres Hermes, un asistente profesional experto en entrenamiento de fuerza. "
+            "Debes responder SOLO JSON válido con esta estructura: "
+            '{"observations":["..."],"recommendations":["..."]}. '
+            "Observations: 2-4 puntos de lectura global del entrenamiento, fatiga, densidad, volumen y rendimiento. "
+            "Recommendations: 2-4 acciones concretas para la próxima sesión, priorizando decisiones generales y luego ejercicios clave. "
+            "Evita repetir datos obvios que ya aparecen en el resumen. "
+            "Usa tono profesional, directo y en español. "
+            "Evita recomendaciones médicas."
+        )
 
     request_payload = {
         "model": settings.openai_model,
@@ -293,21 +303,22 @@ def _try_enrich_with_openai_api(summary: WorkoutSummaryResponse) -> WorkoutSumma
         logger.warning("OpenAI devolvió JSON sin observaciones/recomendaciones útiles.")
         return None
 
+    source = f"openai_api_{coach.slug}" if coach else "openai_api"
     return _merge_ai_lines_into_summary(
         summary=summary,
         ai_observations=ai_observations,
         ai_recommendations=ai_recommendations,
-        analysis_source="openai_api",
+        analysis_source=source,
         ai_model=settings.openai_model,
     )
 
 
-def enrich_summary_with_hermes_ai(summary: WorkoutSummaryResponse) -> WorkoutSummaryResponse:
-    enriched = _try_enrich_with_hermes_oauth(summary)
+def enrich_summary_with_hermes_ai(summary: WorkoutSummaryResponse, coach: CoachProfile | None = None) -> WorkoutSummaryResponse:
+    enriched = _try_enrich_with_hermes_oauth(summary, coach=coach)
     if enriched is not None:
         return enriched
 
-    enriched = _try_enrich_with_openai_api(summary)
+    enriched = _try_enrich_with_openai_api(summary, coach=coach)
     if enriched is not None:
         return enriched
 

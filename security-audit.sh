@@ -5,9 +5,16 @@ set -euo pipefail
 # Run this from any machine on the same LAN as the Raspberry Pi (192.168.1.66)
 # This script only READS data and attempts common attacks. It does NOT modify data.
 
-RPI_IP="192.168.1.66"
-DOMAIN="gymops.a2technology.net"
-API_KEY="${API_KEY:-}"  # Set your API key here if you have one
+# Configuration via environment variables (never hardcode secrets or LAN topology).
+RPI_IP="${RPI_IP:-}"
+DOMAIN="${DOMAIN:-}"
+API_KEY="${API_KEY:-}"
+
+if [ -z "$RPI_IP" ] || [ -z "$DOMAIN" ]; then
+    echo "Usage: RPI_IP=<ip> DOMAIN=<domain> API_KEY=<key> $0"
+    echo "Example: RPI_IP=192.168.1.66 DOMAIN=gymops.example.com API_KEY=sk-xxx $0"
+    exit 1
+fi
 REPORT_FILE="gymops-security-audit-$(date +%Y%m%d-%H%M%S).txt"
 
 # Colors
@@ -305,4 +312,4 @@ log "2. Check $REPORT_FILE for full details"
 log "3. Run with API_KEY=your_key to test authenticated endpoints"
 log ""
 log "To test authenticated endpoints, run:"
-log "  API_KEY=69ea07f9716aa9183c76ceb5ba5daa1397029b462e0094dcbc92c12a428528cd ./security-audit.sh"
+log "  API_KEY=your-secret-key RPI_IP=your.lan.ip DOMAIN=yourdomain.com ./security-audit.sh"

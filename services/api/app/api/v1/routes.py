@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, verify_api_key
+from app.api.v1.coaches import router as coaches_router
 from app.core.limiter import limiter
 from app.schemas.sessions import (
     ActiveSessionStatusResponse,
@@ -28,6 +29,7 @@ from app.services.workout_service import (
 )
 
 router = APIRouter(dependencies=[Depends(verify_api_key)])
+router.include_router(coaches_router)
 
 
 def _raise_http_error(exc: ServiceError) -> None:

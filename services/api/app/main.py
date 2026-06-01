@@ -10,15 +10,16 @@ from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.base import Base
-from app.db.models import Exercise, SetEntry, User, WorkoutSession  # noqa: F401
+from app.db.models import CoachProfile, Exercise, SetEntry, User, UserPreference, WorkoutSession  # noqa: F401
 from app.db.session import SessionLocal, engine
 from app.observability.metrics import metrics_asgi_app
 from app.observability.middleware import prometheus_http_metrics_middleware
+from app.db.seed_coaches import seed_builtin_coaches
 from app.services.workout_service import hydrate_training_observability
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="GymOps API", version="0.6.0-phase6")
+app = FastAPI(title="GymOps API", version="0.7.0-coaches")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -28,6 +29,7 @@ def on_startup() -> None:
     setup_logging(settings.log_level)
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
+        seed_builtin_coaches(db)
         hydrate_training_observability(db)
 
 

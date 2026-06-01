@@ -72,9 +72,22 @@ class GymApiClient:
             },
         )
 
-    async def _post(self, path: str, payload: dict[str, Any]) -> ApiResult:
+    async def list_coaches(self) -> ApiResult:
+        return await self._get("/coaches", {})
+
+    async def my_coach(self, telegram_user_id: int) -> ApiResult:
+        return await self._get("/coaches/me", params={"telegram_user_id": telegram_user_id})
+
+    async def select_coach(self, telegram_user_id: int, coach_slug: str | None) -> ApiResult:
+        return await self._post(
+            "/coaches/select",
+            {"coach_slug": coach_slug},
+            params={"telegram_user_id": telegram_user_id},
+        )
+
+    async def _post(self, path: str, payload: dict[str, Any], params: dict[str, Any] | None = None) -> ApiResult:
         try:
-            response = await self._client.post(path, json=payload)
+            response = await self._client.post(path, json=payload, params=params)
             return self._to_result(response)
         except httpx.RequestError:
             return ApiResult(
