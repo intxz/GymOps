@@ -165,7 +165,18 @@ async def help_command(message: Message) -> None:
         "El bot te recuerda en cada /end qué fase estás y qué técnicas aplicar.\n\n"
         "*Admin:*\n"
         "/autorizar <telegram_id> - Autoriza nuevo usuario\n"
-        "El ID se obtiene cuando un usuario envía /start por primera vez."
+        "El ID se obtiene cuando un usuario envía /start por primera vez.\n\n"
+        "*Cómo se calcula el Readiness Score:*\n"
+        "Base: 100 puntos\n"
+        "Sueño < 6h: -15 | 6-7h: -5 | > 8h: +5\n"
+        "Stress ≥ 8: -15 | ≥ 6: -10 | ≤ 3: +5\n"
+        "Dolor muscular ≥ 8: -15 | ≥ 6: -10 | ≤ 3: +5\n"
+        "\n"
+        "Interpretación:\n"
+        "  80-100: 💪 Óptimo (alta intensidad permitida)\n"
+        "  60-79:  ⚡ Moderado (entrena con cuidado)\n"
+        "  40-59:  😴 Bajo (reduce volumen o intensidad)\n"
+        "  0-39:   🛑 Muy bajo (descansa o movilidad)"
     )
     await message.answer(help_text)
 
@@ -211,12 +222,21 @@ async def status_command(message: Message, api_client: GymApiClient) -> None:
 
     result = await api_client.active_session(telegram_user_id=message.from_user.id)
     if not result.ok:
+        if result.status_code == 404:
+            await message.answer(
+                "❌ No hay entrenamiento activo.\n"
+                "Usa /start para iniciar una sesión."
+            )
+            return
         await message.answer(result.message or "No se pudo obtener el estado.")
         return
 
     data = result.data or {}
     if not data.get("has_active_session"):
-        await message.answer("No hay entrenamiento activo. Usa /start para empezar.")
+        await message.answer(
+            "📭 No hay entrenamiento activo.\n"
+            "Usa /start para iniciar una nueva sesión."
+        )
         return
 
     duration = _format_duration(int(data.get("duration_seconds") or 0))
@@ -241,10 +261,16 @@ async def cancel_command(message: Message, api_client: GymApiClient) -> None:
 
     result = await api_client.cancel_session(telegram_user_id=message.from_user.id)
     if not result.ok:
+        if result.status_code == 404:
+            await message.answer(
+                "❌ No hay entrenamiento activo para cancelar.\n"
+                "Usa /start para iniciar uno primero."
+            )
+            return
         await message.answer(result.message or "No se pudo cancelar la sesión.")
         return
 
-    await message.answer("Entrenamiento cancelado.")
+    await message.answer("🗑️ Entrenamiento cancelado.")
 
 
 @router.message(Command("historial"))
@@ -255,7 +281,14 @@ async def history_command(message: Message, api_client: GymApiClient) -> None:
 
     parts = (message.text or "").split(maxsplit=1)
     if len(parts) < 2 or not parts[1].strip():
-        await message.answer("Uso: /historial sentadilla")
+        await message.answer(
+            "❌ Falta el nombre del ejercicio.\n\n"
+            "Uso: /historial <ejercicio>\n"
+            "Ejemplos:\n"
+            "  /historial sentadilla\n"
+            "  /historial bench_press\n"
+            "  /historial peso_muerto"
+        )
         return
 
     exercise_name = parts[1].strip()

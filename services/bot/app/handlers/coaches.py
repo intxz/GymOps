@@ -48,11 +48,30 @@ async def coach_command(message: Message, api_client: GymApiClient) -> None:
         return
 
     slug = parts[1].strip().lower()
+
+    # Special case: "none" or "ninguno" to deselect
+    if slug in ("none", "ninguno", "quitar"):
+        result = await api_client.select_coach(
+            telegram_user_id=message.from_user.id,
+            coach_slug=None,
+        )
+        if not result.ok:
+            await message.answer(result.message or "No se pudo deseleccionar el entrenador.")
+            return
+        await message.answer("✅ Entrenador deseleccionado. Volverás a análisis local.")
+        return
+
     result = await api_client.select_coach(
         telegram_user_id=message.from_user.id,
         coach_slug=slug,
     )
     if not result.ok:
+        if result.status_code == 404:
+            await message.answer(
+                f"❌ Coach '{slug}' no encontrado.\n"
+                "Usa /coach para ver la lista disponible."
+            )
+            return
         await message.answer(result.message or "No se pudo seleccionar el entrenador.")
         return
 

@@ -57,10 +57,13 @@ async def plan_command(message: Message, api_client: GymApiClient) -> None:
     if subcommand == "nuevo":
         if len(parts) < 3 or not parts[2].strip():
             await message.answer(
+                "❌ Faltan argumentos.\n\n"
                 "Uso: /plan nuevo <nombre> <semanas>\n"
-                "Ejemplo: /plan nuevo Fuerza 12\n"
-                "Recomendado: 12 semanas (Foundation + Ramping)\n"
-                "Objetivos: fuerza, hipertrofia, mixto (default)."
+                "Ejemplo: /plan nuevo Fuerza 12\n\n"
+                "Reglas:\n"
+                "  • Nombre: cualquier texto\n"
+                "  • Semanas: número entre 2 y 24\n"
+                "  • Recomendado: 12 (Foundation + Ramping)"
             )
             return
 
@@ -68,9 +71,22 @@ async def plan_command(message: Message, api_client: GymApiClient) -> None:
         if len(name_parts) == 2 and name_parts[1].isdigit():
             name = name_parts[0]
             weeks = int(name_parts[1])
+            if weeks < 2 or weeks > 24:
+                await message.answer(
+                    "❌ Número de semanas inválido.\n"
+                    "Debe ser entre 2 y 24 semanas.\n"
+                    "Ejemplo: /plan nuevo Fuerza 12"
+                )
+                return
         else:
             name = parts[2].strip()
-            weeks = 4
+            if not name:
+                await message.answer(
+                    "❌ Falta el nombre del plan.\n"
+                    "Ejemplo: /plan nuevo Fuerza 12"
+                )
+                return
+            weeks = 12  # Default to 12 weeks (Nippard style)
 
         # Detect goal from name or use default
         goal = "mixto"
@@ -89,7 +105,13 @@ async def plan_command(message: Message, api_client: GymApiClient) -> None:
         if not result.ok:
             if result.status_code == 409:
                 await message.answer(
-                    result.message or "Ya tienes un mesociclo activo. Finalízalo primero con /plan fin."
+                    "⚠️ " + (result.message or "Ya tienes un mesociclo activo. Finalízalo primero con /plan fin.")
+                )
+                return
+            if result.status_code == 422:
+                await message.answer(
+                    "❌ Datos inválidos.\n"
+                    "Revisa que las semanas estén entre 2 y 24."
                 )
                 return
             await message.answer(result.message or "No se pudo crear el mesociclo.")

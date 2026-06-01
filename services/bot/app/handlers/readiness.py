@@ -18,12 +18,14 @@ async def readiness_command(message: Message, api_client: GymApiClient) -> None:
         # /readiness log <sleep> <stress> <soreness> [peso]
         if len(parts) < 5:
             await message.answer(
+                "❌ Faltan argumentos.\n\n"
                 "Uso: /readiness log <horas_sueño> <stress_1-10> <dolor_1-10> [peso]\n"
-                "Ejemplo: /readiness log 7.5 4 3 82.5\n"
-                "  - sueño: horas (ej. 7.5)\n"
-                "  - stress: 1-10\n"
-                "  - dolor muscular: 1-10\n"
-                "  - peso corporal (opcional)"
+                "Ejemplo: /readiness log 7.5 4 3 82.5\n\n"
+                "Reglas:\n"
+                "  • Sueño: 0-24 horas\n"
+                "  • Stress: 1-10\n"
+                "  • Dolor muscular: 1-10\n"
+                "  • Peso corporal: opcional, en kg"
             )
             return
 
@@ -33,7 +35,26 @@ async def readiness_command(message: Message, api_client: GymApiClient) -> None:
             soreness = int(parts[4])
             body_weight = float(parts[5]) if len(parts) > 5 else None
         except (ValueError, IndexError):
-            await message.answer("Formato inválido. Revisa los números.")
+            await message.answer(
+                "❌ Formato inválido.\n"
+                "Revisa que todos los valores sean números.\n"
+                "Ejemplo: /readiness log 7.5 4 3 82.5"
+            )
+            return
+
+        # Validate ranges
+        errors: list[str] = []
+        if sleep_hours < 0 or sleep_hours > 24:
+            errors.append("Sueño debe estar entre 0 y 24 horas.")
+        if stress_level < 1 or stress_level > 10:
+            errors.append("Stress debe estar entre 1 y 10.")
+        if soreness < 1 or soreness > 10:
+            errors.append("Dolor muscular debe estar entre 1 y 10.")
+        if body_weight is not None and body_weight <= 0:
+            errors.append("Peso corporal debe ser mayor que 0.")
+
+        if errors:
+            await message.answer("❌ " + "\n".join(errors))
             return
 
         result = await api_client.log_readiness(
@@ -44,6 +65,12 @@ async def readiness_command(message: Message, api_client: GymApiClient) -> None:
             body_weight=body_weight,
         )
         if not result.ok:
+            if result.status_code == 422:
+                await message.answer(
+                    "❌ Datos inválidos enviados a la API.\n"
+                    "Revisa los rangos: sueño 0-24, stress 1-10, dolor 1-10."
+                )
+                return
             await message.answer(result.message or "No se pudo guardar el registro.")
             return
 
