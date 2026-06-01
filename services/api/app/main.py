@@ -10,7 +10,7 @@ from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.base import Base
-from app.db.models import CoachProfile, Exercise, Mesocycle, MesocycleWeek, SetEntry, User, UserPreference, WorkoutSession  # noqa: F401
+from app.db.models import CoachProfile, DailyReadiness, Exercise, Mesocycle, MesocycleWeek, SetEntry, User, UserPreference, WorkoutSession  # noqa: F401
 from app.db.session import SessionLocal, engine
 from app.observability.metrics import metrics_asgi_app
 from app.observability.middleware import prometheus_http_metrics_middleware

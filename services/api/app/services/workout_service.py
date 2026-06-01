@@ -17,7 +17,16 @@ from app.observability.metrics import (
     record_set_added,
     record_summary_generated,
 )
-from app.repositories import coach_repository, exercise_repository, session_repository, set_repository, user_preference_repository, user_repository
+from app.repositories import (
+    coach_repository,
+    daily_readiness_repository,
+    exercise_repository,
+    mesocycle_repository,
+    session_repository,
+    set_repository,
+    user_preference_repository,
+    user_repository,
+)
 from app.schemas.sessions import ActiveSessionStatusResponse, SessionInfo
 from app.schemas.sets import SetCreateResponse
 from app.schemas.stats import ExerciseHistoryEntry, ExerciseHistoryResponse, ExerciseStatsResponse
@@ -45,6 +54,96 @@ _LOWER_BODY_HINTS = (
 
 def utc_now() -> datetime:
     return datetime.utcnow()
+
+
+def calculate_readiness_score(
+    sleep_hours: float | None,
+    stress_level: int | None,
+    soreness: int | None,
+) -> int | None:
+    """Calculate readiness score (0-100) based on subjective metrics."""
+    if sleep_hours is None and stress_level is None and soreness is None:
+        return None
+
+    score = 100
+    if sleep_hours is not None:
+        if sleep_hours < 6:
+            score -= 15
+        elif sleep_hours < 7:
+            score -= 5
+        elif sleep_hours > 8:
+            score += 5
+    if stress_level is not None:
+        if stress_level >= 8:
+            score -= 15
+        elif stress_level >= 6:
+            score -= 10
+        elif stress_level <= 3:
+            score += 5
+    if soreness is not None:
+        if soreness >= 8:
+            score -= 15
+        elif soreness >= 6:
+            score -= 10
+        elif soreness <= 3:
+            score += 5
+    return max(0, min(100, score))
+
+
+def _detect_plateau_for_exercise(
+    db: Session,
+    user_id: int,
+    exercise_id: int,
+    lookback_sessions: int = 6,
+) -> tuple[bool, bool]:
+    """Detect if an exercise is in plateau (no PR in last N sessions)."""
+    from app.db.models.workout_session import WorkoutStatus
+
+    stmt = (
+        select(
+            WorkoutSession.id,
+            func.max(SetEntry.weight * SetEntry.reps),
+        )
+        .join(SetEntry, SetEntry.workout_session_id == WorkoutSession.id)
+        .where(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.status == WorkoutStatus.completed,
+            SetEntry.exercise_id == exercise_id,
+            SetEntry.is_warmup.is_(False),
+        )
+        .group_by(WorkoutSession.id)
+        .order_by(WorkoutSession.ended_at.desc())
+        .limit(lookback_sessions)
+    )
+
+    rows = db.execute(stmt).all()
+    if len(rows) < lookback_sessions:
+        return False, False  # Not enough data
+
+    volumes = [float(row[1] or 0) for row in rows]
+    # Check if best volume in window is older than the most recent session
+    best_idx = volumes.index(max(volumes))
+    plateau = best_idx > 0  # PR is not in the most recent session
+
+    # Check if RPE is trending up while volume is flat (fatigue plateau)
+    rpe_stmt = (
+        select(func.avg(SetEntry.rpe))
+        .join(WorkoutSession, WorkoutSession.id == SetEntry.workout_session_id)
+        .where(
+            WorkoutSession.user_id == user_id,
+            WorkoutSession.status == WorkoutStatus.completed,
+            SetEntry.exercise_id == exercise_id,
+            SetEntry.is_warmup.is_(False),
+        )
+        .order_by(WorkoutSession.ended_at.desc())
+        .limit(lookback_sessions)
+    )
+    avg_rpe_result = db.execute(rpe_stmt).scalar()
+    fatigue_plateau = False
+    if avg_rpe_result is not None and plateau:
+        fatigue_plateau = float(avg_rpe_result) >= 8.5
+
+    return plateau, fatigue_plateau
 
 
 def hydrate_training_observability(db: Session) -> None:
@@ -468,6 +567,11 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
         )
         historical_best = historical_best or 0.0
 
+        # Detect plateau for this exercise
+        plateau, fatigue_plateau = _detect_plateau_for_exercise(
+            db=db, user_id=user_id, exercise_id=exercise_id, lookback_sessions=6
+        )
+
         pr_achieved = False
         for row in exercise_sets:
             volume = row.weight * row.reps
@@ -507,6 +611,8 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
                 volume_effective=sum(s.volume for s in effective_lines),
                 top_set=top_set,
                 pr_achieved=pr_achieved,
+                plateau_detected=plateau,
+                fatigue_plateau=fatigue_plateau,
             )
         )
 
@@ -529,6 +635,19 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
             observations.append("Fatiga alta detectada: muchas series cerca del límite (RPE >= 9).")
         else:
             observations.append("La mayoría de series quedaron por debajo de RPE 9.")
+
+    # Plateau detection summary
+    plateau_exercises = [ex.exercise_name for ex in exercises_output if ex.plateau_detected]
+    if plateau_exercises:
+        observations.append(f"⚠️ Estancamiento detectado en: {', '.join(plateau_exercises)}.")
+        if any(ex.fatigue_plateau for ex in exercises_output):
+            recommendations.append(
+                "Estancamiento con fatiga: reduce volumen 10% esta semana o añade una semana de descarga."
+            )
+        else:
+            recommendations.append(
+                "Estancamiento detectado: prueba cambiar el rango de reps o una variante del ejercicio."
+            )
 
     if any(ex.pr_achieved for ex in exercises_output):
         observations.append("Se detectaron PRs en al menos un ejercicio.")
@@ -572,6 +691,21 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
             elif mesocycle_phase == "deload":
                 mesocycle_observations.append("Fase de descarga: reduce volumen ~40%, mantén técnica.")
 
+    # Load readiness context
+    readiness_score = None
+    readiness_interpretation = None
+    latest_readiness = daily_readiness_repository.get_latest(db=db, user_id=user_id)
+    if latest_readiness is not None and latest_readiness.readiness_score is not None:
+        readiness_score = latest_readiness.readiness_score
+        if readiness_score >= 80:
+            readiness_interpretation = "Readiness óptimo 💪"
+        elif readiness_score >= 60:
+            readiness_interpretation = "Readiness moderado ⚡"
+        elif readiness_score >= 40:
+            readiness_interpretation = "Readiness bajo 😴"
+        else:
+            readiness_interpretation = "Readiness muy bajo 🛑"
+
     return WorkoutSummaryResponse(
         session_id=session.id,
         user_id=user_id,
@@ -592,6 +726,8 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
         mesocycle_week=mesocycle_week,
         mesocycle_phase=mesocycle_phase,
         mesocycle_observations=mesocycle_observations,
+        readiness_score=readiness_score,
+        readiness_interpretation=readiness_interpretation,
     )
 
 

@@ -131,6 +131,30 @@ class GymApiClient:
             },
         )
 
+    async def log_readiness(
+        self,
+        telegram_user_id: int,
+        sleep_hours: float | None = None,
+        stress_level: int | None = None,
+        soreness: int | None = None,
+        body_weight: float | None = None,
+        notes: str | None = None,
+    ) -> ApiResult:
+        return await self._post(
+            "/readiness",
+            {
+                "sleep_hours": sleep_hours,
+                "stress_level": stress_level,
+                "soreness": soreness,
+                "body_weight": body_weight,
+                "notes": notes,
+            },
+            params={"telegram_user_id": telegram_user_id},
+        )
+
+    async def get_readiness(self, telegram_user_id: int) -> ApiResult:
+        return await self._get("/readiness", params={"telegram_user_id": telegram_user_id})
+
     async def _post(self, path: str, payload: dict[str, Any], params: dict[str, Any] | None = None) -> ApiResult:
         try:
             response = await self._client.post(path, json=payload, params=params)

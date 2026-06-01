@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 from app.clients.api_client import GymApiClient
 from app.core.auth_middleware import AuthMiddleware
 from app.core.config import settings
-from app.handlers import admin_router, coaches_router, dynamic_exercise_router, fallback_router, mesocycles_router, reserved_router
+from app.handlers import admin_router, coaches_router, dynamic_exercise_router, fallback_router, mesocycles_router, readiness_router, reserved_router
 
 
 async def run() -> None:
@@ -35,6 +35,7 @@ async def run() -> None:
     dp.include_router(admin_router)
     dp.include_router(coaches_router)
     dp.include_router(mesocycles_router)
+    dp.include_router(readiness_router)
     dp.include_router(dynamic_exercise_router)
     dp.include_router(fallback_router)
 

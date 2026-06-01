@@ -20,6 +20,8 @@ class ExerciseSummary(BaseModel):
     volume_effective: float
     top_set: SetLine | None
     pr_achieved: bool
+    plateau_detected: bool = False
+    fatigue_plateau: bool = False
 
 
 class ExerciseHistoryLine(BaseModel):
@@ -58,3 +60,5 @@ class WorkoutSummaryResponse(BaseModel):
     mesocycle_week: str | None = None
     mesocycle_phase: str | None = None
     mesocycle_observations: list[str] = Field(default_factory=list)
+    readiness_score: int | None = None
+    readiness_interpretation: str | None = None

@@ -5,6 +5,7 @@ from app.api.deps import get_db, verify_api_key
 from app.api.v1.admin import router as admin_router
 from app.api.v1.coaches import router as coaches_router
 from app.api.v1.mesocycles import router as mesocycles_router
+from app.api.v1.readiness import router as readiness_router
 from app.core.limiter import limiter
 from app.schemas.sessions import (
     ActiveSessionStatusResponse,
@@ -34,6 +35,7 @@ router = APIRouter(dependencies=[Depends(verify_api_key)])
 router.include_router(admin_router)
 router.include_router(coaches_router)
 router.include_router(mesocycles_router)
+router.include_router(readiness_router)
 
 
 def _raise_http_error(exc: ServiceError) -> None:

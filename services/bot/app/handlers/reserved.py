@@ -79,6 +79,12 @@ def _render_end_summary(payload: dict[str, Any]) -> str:
     lines.append(f"Volumen total: {summary.get('volume_total', 0)} kg")
     lines.append(f"Volumen efectivo: {_effective_volume_by_exercise(exercises)}")
 
+    # Readiness score
+    readiness_score = summary.get("readiness_score")
+    readiness_interp = summary.get("readiness_interpretation")
+    if readiness_score is not None and readiness_interp:
+        lines.append(f"📊 Readiness: {readiness_score}/100 - {readiness_interp}")
+
     # Mesocycle context
     meso_obs = summary.get("mesocycle_observations", [])
     if meso_obs:
@@ -137,6 +143,8 @@ async def help_command(message: Message) -> None:
         "📅 /plan nuevo <nombre> <semanas> - Crea plan (recomendado: 12 semanas)\n"
         "📅 /plan fin - Finaliza plan actual\n"
         "📜 /historial <ejercicio> - Historial y análisis\n"
+        "🩺 /readiness - Ver readiness score\n"
+        "🩺 /readiness log <sueño> <stress> <dolor> [peso] - Registrar métricas\n"
         "❓ /help - Esta ayuda\n\n"
         "*Formato de series:*\n"
         "/<ejercicio> PESOxREPS RPE\n"
