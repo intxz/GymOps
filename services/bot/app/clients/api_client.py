@@ -85,6 +85,39 @@ class GymApiClient:
             params={"telegram_user_id": telegram_user_id},
         )
 
+    async def list_mesocycles(self, telegram_user_id: int) -> ApiResult:
+        return await self._get("/mesocycles", params={"telegram_user_id": telegram_user_id})
+
+    async def create_mesocycle(
+        self,
+        telegram_user_id: int,
+        name: str,
+        goal: str = "mixto",
+        weeks_total: int = 4,
+    ) -> ApiResult:
+        return await self._post(
+            "/mesocycles",
+            {"name": name, "goal": goal, "weeks_total": weeks_total},
+            params={"telegram_user_id": telegram_user_id},
+        )
+
+    async def get_active_mesocycle_week(self, telegram_user_id: int) -> ApiResult:
+        return await self._get("/mesocycles/active/week", params={"telegram_user_id": telegram_user_id})
+
+    async def complete_mesocycle(self, telegram_user_id: int, mesocycle_id: int) -> ApiResult:
+        return await self._post(
+            f"/mesocycles/{mesocycle_id}/complete",
+            {},
+            params={"telegram_user_id": telegram_user_id},
+        )
+
+    async def cancel_mesocycle(self, telegram_user_id: int, mesocycle_id: int) -> ApiResult:
+        return await self._post(
+            f"/mesocycles/{mesocycle_id}/cancel",
+            {},
+            params={"telegram_user_id": telegram_user_id},
+        )
+
     async def _post(self, path: str, payload: dict[str, Any], params: dict[str, Any] | None = None) -> ApiResult:
         try:
             response = await self._client.post(path, json=payload, params=params)

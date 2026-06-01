@@ -534,6 +534,33 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
         observations.append("Se detectaron PRs en al menos un ejercicio.")
     recommendations.extend(per_exercise_recommendations[:6])
 
+    # Load active mesocycle context
+    mesocycle_name = None
+    mesocycle_week = None
+    mesocycle_phase = None
+    mesocycle_observations: list[str] = []
+
+    active_meso = mesocycle_repository.get_active_by_user_id(db=db, user_id=user_id)
+    if active_meso is not None:
+        mesocycle_name = active_meso.name
+        current_week = mesocycle_repository.get_current_week(db=db, mesocycle=active_meso)
+        if current_week is not None:
+            mesocycle_week = f"Semana {current_week.week_number} de {active_meso.weeks_total}"
+            mesocycle_phase = current_week.phase
+            mesocycle_observations.append(
+                f"📅 Plan activo: {mesocycle_name} - {mesocycle_week} ({mesocycle_phase})"
+            )
+            mesocycle_observations.append(
+                f"Objetivo RPE esta semana: {current_week.target_rpe_range}"
+            )
+            # Simple phase-based recommendation
+            if mesocycle_phase == "accumulation":
+                mesocycle_observations.append("Fase de acumulación: prioriza volumen sobre intensidad.")
+            elif mesocycle_phase == "intensification":
+                mesocycle_observations.append("Fase de intensificación: es momento de empujar la carga.")
+            elif mesocycle_phase == "deload":
+                mesocycle_observations.append("Fase de descarga: reduce volumen ~40%, mantén técnica.")
+
     return WorkoutSummaryResponse(
         session_id=session.id,
         user_id=user_id,
@@ -550,6 +577,10 @@ def build_summary(db: Session, telegram_user_id: int, session_id: int) -> Workou
         exercise_history=exercise_history,
         observations=observations,
         recommendations=recommendations,
+        mesocycle_name=mesocycle_name,
+        mesocycle_week=mesocycle_week,
+        mesocycle_phase=mesocycle_phase,
+        mesocycle_observations=mesocycle_observations,
     )
 
 

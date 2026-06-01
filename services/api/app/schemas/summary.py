@@ -54,3 +54,7 @@ class WorkoutSummaryResponse(BaseModel):
     ai_model: str | None = None
     ai_observations: list[str] = Field(default_factory=list)
     ai_recommendations: list[str] = Field(default_factory=list)
+    mesocycle_name: str | None = None
+    mesocycle_week: str | None = None
+    mesocycle_phase: str | None = None
+    mesocycle_observations: list[str] = Field(default_factory=list)

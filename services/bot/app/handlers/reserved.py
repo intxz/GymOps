@@ -78,6 +78,14 @@ def _render_end_summary(payload: dict[str, Any]) -> str:
     lines.append(f"Calentamiento: {summary.get('warmup_sets', 0)}")
     lines.append(f"Volumen total: {summary.get('volume_total', 0)} kg")
     lines.append(f"Volumen efectivo: {_effective_volume_by_exercise(exercises)}")
+
+    # Mesocycle context
+    meso_obs = summary.get("mesocycle_observations", [])
+    if meso_obs:
+        lines.append("")
+        for obs in meso_obs:
+            lines.append(obs)
+
     lines.append("")
 
     lines.append("Trabajo por ejercicio:")
@@ -119,6 +127,8 @@ async def help_command(message: Message) -> None:
         "/end - finaliza y genera resumen\n"
         "/cancel - cancela sesión activa\n"
         "/coach - elige tu entrenador IA\n"
+        "/plan - ver plan de entrenamiento\n"
+        "/historial <ejercicio> - historial\n"
         "/help - ayuda\n\n"
         "Formato de series:\n"
         "/<ejercicio> PESOxREPS RPE\n"

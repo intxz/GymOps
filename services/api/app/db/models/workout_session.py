@@ -3,7 +3,6 @@ from enum import Enum
 
 from sqlalchemy import DateTime, Enum as SqlEnum, ForeignKey, Index, Integer, text
 from sqlalchemy.orm import Mapped, mapped_column
-
 from app.db.base import Base
 
 
@@ -32,4 +31,5 @@ class WorkoutSession(Base):
         SqlEnum(WorkoutStatus, native_enum=False), nullable=False, default=WorkoutStatus.active
     )
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mesocycle_week_id: Mapped[int | None] = mapped_column(ForeignKey("mesocycle_weeks.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
